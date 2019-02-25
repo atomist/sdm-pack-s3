@@ -19,7 +19,37 @@ Send your project's build output to S3 using this fabulous `publishToS3` goal.
 
 ## Using
 
+In your software delivery machine project:
 
+`npm install @atomist/sdm-pack-s3`
+
+then in your `machine.ts`:
+
+```typescript
+import { publishToS3Goal } from "@atomist/sdm-pack-s3";
+
+    const publish = publishToS3Goal({
+        bucketName: "your-bucket-name",
+        region: "us-west-2", // use your region
+        filesToPublish: ["site/**/*.html", "more/files/to/publish"],
+        pathTranslation: (filepath, inv) => filepath, // rearrange files if necessary
+        pathToIndex: "site/index.html", // index file in your project
+    });
+```
+
+If you need a build to happen before the publish, call `withProjectListener()` on that goal 
+and pass a [GoalProjectListenerRegistration](https://docs.atomist.com/developer/goals-more/#prepare-the-checked-out-code).
+
+Add this publish goal to one of your goal sets.
+
+```typescript
+    const publishGoals = goals("publish static site to S3")
+        .plan(publish);
+
+    sdm.withPushRules(
+        whenPushSatisfies(requestsUploadToS3).setGoals(publishGoals),
+    );
+```
 
 ## Getting started
 
