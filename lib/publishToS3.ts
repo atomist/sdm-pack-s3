@@ -85,7 +85,7 @@ export interface PublishToS3Options {
  * Get a goal that will publish (portions of) a project to S3.
  * If the project needs to be built or otherwise processed first, use
  * `.withProjectListeners` to get those prerequisite steps done.
- * 
+ *
  */
 export function publishToS3Goal(params: PublishToS3Options): FulfillableGoal {
     return goal({
@@ -100,7 +100,6 @@ export function publishToS3Goal(params: PublishToS3Options): FulfillableGoal {
 function putObject(s3: S3, params: S3.Types.PutObjectRequest): () => Promise<S3.Types.PutObjectOutput> {
     return promisify<S3.Types.PutObjectOutput>(cb => s3.putObject(params, cb));
 }
-
 
 export function executePublishToS3(params: PublishToS3Options): ExecuteGoal {
     return doWithProject(

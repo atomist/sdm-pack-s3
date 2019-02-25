@@ -22,7 +22,9 @@
   "main": "./index.js",
   "types": "./index.d.ts",
   "dependencies": {
+    "@atomist/slack-messages": "^1.1.0",
     "aws-sdk": "^2.409.0",
+    "fs-extra": "^7.0.1",
     "mime-types": "^2.1.22"
   },
   "peerDependencies": {
