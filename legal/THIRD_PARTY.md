@@ -1,8 +1,8 @@
-# `sdm-pack-s3`
+# `@atomist/sdm-pack-s3`
 
-`sdm-pack-s3` is licensed under Apache License 2.0 - [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0).
+`@atomist/sdm-pack-s3` is licensed under Apache License 2.0 - [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0).
 
-This page details all runtime OSS dependencies of `sdm-pack-s3`.
+This page details all runtime OSS dependencies of `@atomist/sdm-pack-s3`.
 
 ## Licenses
 
