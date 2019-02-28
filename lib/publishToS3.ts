@@ -27,6 +27,7 @@ import {
     FulfillableGoal,
     goal,
     GoalInvocation,
+    GoalWithFulfillment,
     lastLinesLogInterpreter,
     ProjectAwareGoalInvocation,
     slackWarningMessage,
@@ -49,6 +50,12 @@ export type GlobPatterns = string[];
  * Specify how to publish a project's output to S3.
  */
 export interface PublishToS3Options {
+
+    /**
+     * Name of this publish operation. Make it unique per push.
+     */
+    uniqueName: string;
+
     /**
      * Name of the bucket. For example: docs.atomist.com
      */
@@ -87,14 +94,20 @@ export interface PublishToS3Options {
  * `.withProjectListeners` to get those prerequisite steps done.
  *
  */
-export function publishToS3Goal(params: PublishToS3Options): FulfillableGoal {
-    return goal({
-        displayName: "publishToS3",
-    },
-        executePublishToS3(params),
-        {
+export class PublishToS3 extends GoalWithFulfillment {
+
+    constructor(private readonly options: PublishToS3Options) {
+        super({
+            uniqueName: options.uniqueName,
+            workingDescription: "Publishing to S3",
+            completedDescription: "Published to S3",
+        });
+        this.with({
+            name: "publishToS3",
+            goalExecutor: executePublishToS3(options),
             logInterpreter: lastLinesLogInterpreter("Failed to publish to S3", 10),
         });
+    }
 }
 
 function putObject(s3: S3, params: S3.Types.PutObjectRequest): () => Promise<S3.Types.PutObjectOutput> {

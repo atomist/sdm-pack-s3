@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-export { publishToS3Goal } from "./lib/publishToS3";
+export { PublishToS3 } from "./lib/publishToS3";
