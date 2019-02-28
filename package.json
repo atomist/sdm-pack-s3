@@ -1,8 +1,12 @@
 {
-  "name": "sdm-pack-s3",
+  "name": "@atomist/sdm-pack-s3",
   "version": "0.1.0",
   "description": "my new project",
-  "author": "jessitron",
+  "author": {
+    "name": "Atomist",
+    "email": "jessitron@atomist.com",
+    "website": "https://atomist.com"
+  },
   "license": "Apache-2.0",
   "homepage": "https://github.com/atomist/sdm-pack-s3#readme",
   "repository": {
@@ -17,7 +21,7 @@
     "automation",
     "pack",
     "sdm",
-    "seed"
+    "aws"
   ],
   "main": "./index.js",
   "types": "./index.d.ts",
