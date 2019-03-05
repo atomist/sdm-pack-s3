@@ -29,6 +29,7 @@ import {
     GoalInvocation,
     GoalWithFulfillment,
     lastLinesLogInterpreter,
+    PredicatedGoalDefinition,
     ProjectAwareGoalInvocation,
     slackWarningMessage,
 } from "@atomist/sdm";
@@ -96,11 +97,11 @@ export interface PublishToS3Options {
  */
 export class PublishToS3 extends GoalWithFulfillment {
 
-    constructor(private readonly options: PublishToS3Options) {
+    constructor(private readonly options: PublishToS3Options & PredicatedGoalDefinition) {
         super({
-            uniqueName: options.uniqueName,
             workingDescription: "Publishing to S3",
             completedDescription: "Published to S3",
+            ...options,
         });
         this.with({
             name: "publishToS3",
