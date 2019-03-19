@@ -26,6 +26,7 @@
   "main": "./index.js",
   "types": "./index.d.ts",
   "dependencies": {
+    "@atomist/sdm-local": "^1.0.5-master.20190315000709",
     "@atomist/slack-messages": "^1.1.0",
     "aws-sdk": "^2.409.0",
     "fs-extra": "^7.0.1",
@@ -37,9 +38,9 @@
     "@atomist/sdm-core": "*"
   },
   "devDependencies": {
-    "@atomist/automation-client": "^1.2.0",
-    "@atomist/sdm": "^1.2.0",
-    "@atomist/sdm-core": "^1.2.0",
+    "@atomist/automation-client": "^1.3.0-master.20190314230900",
+    "@atomist/sdm": "^1.3.0-master.20190314232345",
+    "@atomist/sdm-core": "^1.3.1-master.20190318101443",
     "@types/mime-types": "^2.1.0",
     "@types/mocha": "^5.2.5",
     "@types/power-assert": "^1.5.0",
