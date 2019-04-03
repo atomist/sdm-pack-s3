@@ -74,19 +74,21 @@ export interface PublishToS3Options {
     filesToPublish: GlobPatterns;
 
     /**
-     * Function from a file path within this project to a key (path within the bucket)
-     * where it belongs on S3.
-     * You can use the invocation to see the SHA and branch, in case you want to upload to
-     * a branch- or commit-specific place inside the bucket.
+     * Function from a file path within this project to a key (path
+     * within the bucket) where it belongs on S3.  You can use the
+     * invocation to see the SHA and branch, in case you want to
+     * upload to a branch- or commit-specific place inside the bucket.
      */
-    pathTranslation: (filePath: string, inv: GoalInvocation) => string;
+    pathTranslation?: (filePath: string, inv: GoalInvocation) => string;
 
     /**
-     * Which file within the project represents the root of the uploaded site?
-     * This is a path within the project; it will be passed to pathTranslation to get
-     * the path within the bucket, in order to link to here on the completed goal.
+     * The file or path within the project represents the root of the
+     * uploaded site.  This is a path within the project.  It will be
+     * passed to pathTranslation to get the path within the bucket
+     * when generating the link to the completed goal.  If it is not
+     * provided, no externalUrl is provided in the goal result.
      */
-    pathToIndex: string;
+    pathToIndex?: string;
 }
 
 /**
@@ -116,19 +118,30 @@ function putObject(s3: S3, params: S3.Types.PutObjectRequest): () => Promise<S3.
 }
 
 export function executePublishToS3(params: PublishToS3Options): ExecuteGoal {
+    if (!params.pathTranslation) {
+        params.pathTranslation = p => p;
+    }
     return doWithProject(
         async (inv: ProjectAwareGoalInvocation): Promise<ExecuteGoalResult> => {
             if (!inv.id.sha) {
                 return { code: 99, message: "SHA is not defined. I need that" };
             }
             try {
-                const s3 = new S3({
-                    credentials: new Credentials(inv.configuration.sdm.aws.accessKey, inv.configuration.sdm.aws.secretKey),
-                });
+                let s3: S3;
+                if (inv.configuration.sdm.aws && inv.configuration.sdm.aws.accessKey && inv.configuration.sdm.aws.secretKey) {
+                    const credentials = new Credentials(inv.configuration.sdm.aws.accessKey, inv.configuration.sdm.aws.secretKey);
+                    s3 = new S3({ credentials });
+                } else {
+                    logger.info(`No AWS keys in SDM configuration, falling back to default credentials`);
+                    s3 = new S3();
+                }
                 const result = await pushToS3(s3, inv, params);
 
-                const linkToIndex = result.bucketUrl + params.pathTranslation(params.pathToIndex, inv);
-                inv.progressLog.write("URL: " + linkToIndex);
+                let linkToIndex: string;
+                if (params.pathToIndex) {
+                    linkToIndex = result.bucketUrl + params.pathTranslation(params.pathToIndex, inv);
+                    inv.progressLog.write("URL: " + linkToIndex);
+                }
                 inv.progressLog.write(result.warnings.join("\n"));
                 inv.progressLog.write(`${result.fileCount} files uploaded to ${linkToIndex}`);
 
@@ -138,13 +151,14 @@ export function executePublishToS3(params: PublishToS3Options): ExecuteGoal {
 
                 return {
                     code: 0,
-                    externalUrls: [{ label: "Check it out!", url: linkToIndex }],
+                    externalUrls: (linkToIndex) ? [{ label: "S3 website", url: linkToIndex }] : undefined,
                 };
             } catch (e) {
                 return { code: 98, message: e.message };
             }
-        }
-        , { readOnly: true });
+        },
+        { readOnly: true },
+    );
 }
 
 function formatWarningMessage(url: string, warnings: string[], id: RepoRef, ctx: HandlerContext): SlackMessage {
@@ -158,29 +172,28 @@ async function pushToS3(s3: S3, inv: ProjectAwareGoalInvocation, params: Publish
     Promise<{ bucketUrl: string, warnings: string[], fileCount: number }> {
     const { bucketName, filesToPublish, pathTranslation, region } = params;
     const project = inv.project;
+    const log = inv.progressLog;
     const warnings: string[] = [];
     let fileCount = 0;
     await doWithFiles(project, filesToPublish, async file => {
         fileCount++;
         const key = pathTranslation(file.path, inv);
-
-        const contentType = mime.lookup(file.path);
-        if (contentType === false) {
-            warnings.push("Not uploading: Unable to determine content type for " + file.path);
-            return;
+        const contentType = mime.lookup(file.path) || "text/plain";
+        const content = await file.getContentBuffer();
+        logger.debug(`File: ${file.path}, key: ${key}, contentType: ${contentType}`);
+        try {
+            await putObject(s3, {
+                Bucket: bucketName,
+                Key: key,
+                Body: content,
+                ContentType: contentType,
+            })();
+            log.write(`Put '${file.path}' to 's3://${bucketName}/${key}'`);
+        } catch (e) {
+            const msg = `Failed to put '${file.path}' to 's3://${bucketName}/${key}': ${e.message}`;
+            log.write(msg);
+            warnings.push(msg);
         }
-
-        const content = await fs.readFile(project.baseDir +
-            path.sep + file.path); // replace with file.getContentBuffer when that makes it into automation-client
-
-        logger.info(`File: ${file.path}, key: ${key}, contentType: ${contentType}`);
-        await putObject(s3, {
-            Bucket: bucketName,
-            Key: key,
-            Body: content,
-            ContentType: contentType,
-        })();
-        logger.info("OK! Published to " + key);
     });
 
     return {
