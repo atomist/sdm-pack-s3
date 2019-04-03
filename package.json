@@ -1,7 +1,7 @@
 {
   "name": "@atomist/sdm-pack-s3",
   "version": "0.1.0",
-  "description": "my new project",
+  "description": "SDM extension pack for publishing artifacts to AWS S3",
   "author": {
     "name": "Atomist",
     "email": "jessitron@atomist.com",
@@ -19,15 +19,17 @@
   "keywords": [
     "atomist",
     "automation",
+    "aws",
     "pack",
-    "sdm",
-    "aws"
+    "s3",
+    "sdm"
   ],
   "main": "./index.js",
   "types": "./index.d.ts",
   "dependencies": {
-    "@atomist/sdm-local": "^1.0.5-master.20190315000709",
     "@atomist/slack-messages": "^1.1.0",
+    "@types/fs-extra": "^5.0.5",
+    "@types/mime-types": "^2.1.0",
     "aws-sdk": "^2.409.0",
     "fs-extra": "^7.0.1",
     "mime-types": "^2.1.22"
@@ -38,10 +40,9 @@
     "@atomist/sdm-core": "*"
   },
   "devDependencies": {
-    "@atomist/automation-client": "^1.3.0-master.20190314230900",
-    "@atomist/sdm": "^1.3.0-master.20190314232345",
-    "@atomist/sdm-core": "^1.3.1-master.20190318101443",
-    "@types/mime-types": "^2.1.0",
+    "@atomist/automation-client": "^1.3.0",
+    "@atomist/sdm": "^1.4.1",
+    "@atomist/sdm-core": "^1.4.0",
     "@types/mocha": "^5.2.5",
     "@types/power-assert": "^1.5.0",
     "espower-typescript": "^9.0.0",
@@ -50,10 +51,10 @@
     "power-assert": "^1.6.1",
     "rimraf": "^2.6.2",
     "supervisor": "^0.12.0",
-    "ts-node": "^7.0.1",
-    "tslint": "^5.11.0",
-    "typedoc": "^0.13.0",
-    "typescript": "^3.1.6"
+    "ts-node": "^8.0.3",
+    "tslint": "^5.15.0",
+    "typedoc": "^0.14.2",
+    "typescript": "^3.2.4"
   },
   "directories": {
     "test": "test"
