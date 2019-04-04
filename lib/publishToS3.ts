@@ -24,8 +24,6 @@ import {
     doWithProject,
     ExecuteGoal,
     ExecuteGoalResult,
-    FulfillableGoal,
-    goal,
     GoalInvocation,
     GoalWithFulfillment,
     lastLinesLogInterpreter,
@@ -37,9 +35,7 @@ import {
     SlackMessage,
 } from "@atomist/slack-messages";
 import { Credentials, S3 } from "aws-sdk";
-import * as fs from "fs-extra";
 import * as mime from "mime-types";
-import * as path from "path";
 import { promisify } from "util";
 
 /**
@@ -99,7 +95,7 @@ export interface PublishToS3Options {
  */
 export class PublishToS3 extends GoalWithFulfillment {
 
-    constructor(private readonly options: PublishToS3Options & PredicatedGoalDefinition) {
+    constructor(options: PublishToS3Options & PredicatedGoalDefinition) {
         super({
             workingDescription: "Publishing to S3",
             completedDescription: "Published to S3",
