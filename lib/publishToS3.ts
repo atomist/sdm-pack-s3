@@ -85,13 +85,20 @@ export interface PublishToS3Options {
      * provided, no externalUrl is provided in the goal result.
      */
     pathToIndex?: string;
+
+    /**
+     * If true, delete objects from S3 bucket that do not map to files
+     * in the repository being copied to the bucket.  If false, files
+     * from the repository are copied to the bucket but no existing
+     * objects in the bucket are deleted.
+     */
+    sync?: boolean;
 }
 
 /**
  * Get a goal that will publish (portions of) a project to S3.
  * If the project needs to be built or otherwise processed first, use
  * `.withProjectListeners` to get those prerequisite steps done.
- *
  */
 export class PublishToS3 extends GoalWithFulfillment {
 
@@ -109,8 +116,16 @@ export class PublishToS3 extends GoalWithFulfillment {
     }
 }
 
-function putObject(s3: S3, params: S3.Types.PutObjectRequest): () => Promise<S3.Types.PutObjectOutput> {
-    return promisify<S3.Types.PutObjectOutput>(cb => s3.putObject(params, cb));
+function putObject(s3: S3, params: S3.PutObjectRequest): () => Promise<S3.PutObjectOutput> {
+    return promisify<S3.PutObjectOutput>(cb => s3.putObject(params, cb));
+}
+
+function listObjects(s3: S3, params: S3.ListObjectsV2Request): () => Promise<S3.ListObjectsV2Output> {
+    return promisify<S3.ListObjectsV2Output>(cb => s3.listObjectsV2(params, cb));
+}
+
+function deleteObjects(s3: S3, params: S3.DeleteObjectsRequest): () => Promise<S3.DeleteObjectsOutput> {
+    return promisify<S3.DeleteObjectsOutput>(cb => s3.deleteObjects(params, cb));
 }
 
 export function executePublishToS3(params: PublishToS3Options): ExecuteGoal {
@@ -170,6 +185,7 @@ async function pushToS3(s3: S3, inv: ProjectAwareGoalInvocation, params: Publish
     const project = inv.project;
     const log = inv.progressLog;
     const warnings: string[] = [];
+    const keys: string[] = [];
     let fileCount = 0;
     await doWithFiles(project, filesToPublish, async file => {
         fileCount++;
@@ -184,6 +200,7 @@ async function pushToS3(s3: S3, inv: ProjectAwareGoalInvocation, params: Publish
                 Body: content,
                 ContentType: contentType,
             })();
+            keys.push(key);
             log.write(`Put '${file.path}' to 's3://${bucketName}/${key}'`);
         } catch (e) {
             const msg = `Failed to put '${file.path}' to 's3://${bucketName}/${key}': ${e.message}`;
@@ -192,9 +209,61 @@ async function pushToS3(s3: S3, inv: ProjectAwareGoalInvocation, params: Publish
         }
     });
 
+    if (params.sync) {
+        let listObjectsResponse: S3.ListObjectsV2Output = {
+            IsTruncated: true,
+            NextContinuationToken: undefined,
+        };
+        const maxItems = 1000;
+        const deletedKeys: S3.ObjectIdentifier[] = [];
+        while (listObjectsResponse.IsTruncated) {
+            try {
+                listObjectsResponse = await listObjects(s3, {
+                    Bucket: bucketName,
+                    MaxKeys: maxItems,
+                    ContinuationToken: listObjectsResponse.NextContinuationToken,
+                })();
+                deletedKeys.push(...filterKeys(keys, listObjectsResponse.Contents));
+            } catch (e) {
+                const msg = `Failed to list objects in 's3://${bucketName}': ${e.message}`;
+                log.write(msg);
+                warnings.push(msg);
+                break;
+            }
+        }
+        for (let i = 0; i < deletedKeys.length; i += maxItems) {
+            const keysString = deletedKeys.slice(i, i + maxItems).join(",");
+            try {
+                await deleteObjects(s3, {
+                    Bucket: bucketName,
+                    Delete: {
+                        Objects: deletedKeys.slice(i, i + maxItems),
+                    },
+                })();
+                log.write(`Deleted objects (${keysString}) in 's3://${bucketName}'`);
+            } catch (e) {
+                const msg = `Failed to delete objects (${keysString}) in 's3://${bucketName}': ${e.message}`;
+                log.write(msg);
+                warnings.push(msg);
+                break;
+            }
+        }
+    }
+
     return {
         bucketUrl: `http://${bucketName}.s3-website.${region}.amazonaws.com/`,
         warnings,
         fileCount,
     };
+}
+
+/**
+ * Remove objects that either have no key or match a key in `keys`.
+ *
+ * @param keys Keys that should be removed from `objects`
+ * @param objects Array to filter
+ * @return Array of object identifiers
+ */
+export function filterKeys(keys: string[], objects: S3.Object[]): S3.ObjectIdentifier[] {
+    return objects.filter(o => o.Key && !keys.includes(o.Key)).map(o => ({ Key: o.Key }));
 }
