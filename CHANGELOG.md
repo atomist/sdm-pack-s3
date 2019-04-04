@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased](https://github.com/atomist/sdm-pack-seed/compare/0.1.0...HEAD)
 
+### Added
+
+-   Add sync option. [#8](https://github.com/atomist/sdm-pack-s3/issues/8)
+
 ### Changed
 
 -   Provide default MIME type and pathTranslation. [#5](https://github.com/atomist/sdm-pack-s3/issues/5)
