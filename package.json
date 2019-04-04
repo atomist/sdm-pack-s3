@@ -1,6 +1,6 @@
 {
   "name": "@atomist/sdm-pack-s3",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "SDM extension pack for publishing artifacts to AWS S3",
   "author": {
     "name": "Atomist",
