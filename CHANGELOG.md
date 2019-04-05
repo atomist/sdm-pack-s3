@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased](https://github.com/atomist/sdm-pack-seed/compare/0.2.0...HEAD)
 
+### Changed
+
+-   Defer adding fulfillment. [#10](https://github.com/atomist/sdm-pack-s3/issues/10)
+
 ## [0.2.0](https://github.com/atomist/sdm-pack-seed/compare/0.1.0...0.2.0) - 2019-04-04
 
 ### Added
