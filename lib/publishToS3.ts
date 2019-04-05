@@ -26,10 +26,11 @@ import {
     ExecuteGoalResult,
     GoalInvocation,
     GoalWithFulfillment,
-    lastLinesLogInterpreter,
+    LogSuppressor,
     PredicatedGoalDefinition,
     ProjectAwareGoalInvocation,
     slackWarningMessage,
+    SoftwareDeliveryMachine,
 } from "@atomist/sdm";
 import {
     SlackMessage,
@@ -102,16 +103,31 @@ export interface PublishToS3Options {
  */
 export class PublishToS3 extends GoalWithFulfillment {
 
-    constructor(options: PublishToS3Options & PredicatedGoalDefinition) {
+    constructor(private readonly options: PublishToS3Options & PredicatedGoalDefinition) {
         super({
             workingDescription: "Publishing to S3",
             completedDescription: "Published to S3",
             ...options,
         });
-        this.with({
-            name: "publishToS3",
-            goalExecutor: executePublishToS3(options),
-            logInterpreter: lastLinesLogInterpreter("Failed to publish to S3", 10),
+    }
+
+    /**
+     * Called by the SDM on initialization.  This function calls
+     * `super.register` and adds a startup listener to the SDM.  The
+     * startup listener registers a default goal fulfillment if there
+     * is none that suppresses logs posted to chat.
+     */
+    public register(sdm: SoftwareDeliveryMachine): void {
+        super.register(sdm);
+
+        sdm.addStartupListener(async () => {
+            if (this.fulfillments.length === 0 && this.callbacks.length === 0) {
+                this.with({
+                    name: `publishToS3-${this.options.bucketName}`,
+                    goalExecutor: executePublishToS3(this.options),
+                    logInterpreter: LogSuppressor,
+                });
+            }
         });
     }
 }
