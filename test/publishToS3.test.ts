@@ -14,8 +14,15 @@
  * limitations under the License.
  */
 
+import { InMemoryProject } from "@atomist/automation-client";
+import { ProjectAwareGoalInvocation } from "@atomist/sdm";
+import { S3 } from "aws-sdk";
 import * as assert from "power-assert";
-import { filterKeys } from "../lib/publishToS3";
+import {
+    filterKeys,
+    PublishToS3Options,
+    pushToS3,
+} from "../lib/publishToS3";
 
 describe("publishToS3", () => {
 
@@ -82,6 +89,153 @@ describe("publishToS3", () => {
                 { Key: "RageAgainstTheMachine/03-TakeThePowerBack.mp3" },
             ];
             assert.deepStrictEqual(r, e);
+        });
+
+    });
+
+    describe("pushToS3", () => {
+
+        it("should push files", async () => {
+            const puts: S3.PutObjectRequest[] = [];
+            const deletes: S3.ObjectIdentifier[] = [];
+            let terminateList = false;
+            const s3: S3 = {
+                putObject: (pars: S3.PutObjectRequest, cb: any) => {
+                    if (pars.Key === "9/10.html") {
+                        throw new Error("Permission denied");
+                    }
+                    puts.push(pars);
+                    const data = { ETag: `${pars.Bucket}:${pars.Key}`, VersionId: "0" };
+                    return { promise: () => Promise.resolve(data) };
+                },
+                listObjectsV2: (pars: S3.ListObjectsV2Output, cb: any) => {
+                    if (terminateList) {
+                        const contents = [
+                            {
+                                ETag: "jeff-rosenstock/0",
+                                Key: "post/mornin'!",
+                                LastModified: new Date().toString(),
+                                Size: 0,
+                                StorageClass: "STANDARD",
+                            },
+                            {
+                                ETag: "jeff-rosenstock/1",
+                                Key: "post/USA",
+                                LastModified: new Date().toString(),
+                                Size: 0,
+                                StorageClass: "STANDARD",
+                            },
+                            {
+                                ETag: "jeff-rosenstock/2",
+                                Key: "post/Yr Throat",
+                                LastModified: new Date().toString(),
+                                Size: 0,
+                                StorageClass: "STANDARD",
+                            },
+                        ];
+                        return {
+                            promise: () => Promise.resolve({
+                                Contents: contents,
+                                IsTruncated: false,
+                                KeyCount: contents.length,
+                                MaxKeys: contents.length,
+                                Name: "testbucket",
+                                Prefix: pars.Prefix,
+                            }),
+                        };
+                    } else {
+                        terminateList = true;
+                        return {
+                            promise: () => Promise.resolve({
+                                Contents: puts.map(o => ({
+                                    ETag: `${o.Bucket}:${o.Key}`,
+                                    Key: o.Key,
+                                    LastModified: new Date().toString(),
+                                    Size: o.ContentLength || 0,
+                                    StorageClass: "STANDARD",
+                                })),
+                                IsTruncated: true,
+                                KeyCount: puts.length,
+                                MaxKeys: puts.length,
+                                Name: "testbucket",
+                                NextContinuationToken: "1w41l63U0xa8q7smH50vCxyTQqdxo69O3EmK28Bi5PcROI4wI/EyIJg==",
+                                Prefix: pars.Prefix,
+                            }),
+                        };
+                    }
+                },
+                deleteObjects: (pars: S3.DeleteObjectsRequest, cb: any) => {
+                    deletes.push(...pars.Delete.Objects);
+                    const data = { Deleted: pars.Delete.Objects.map(o => ({ DeleteMarker: true, Key: o.Key })) };
+                    return { promise: () => Promise.resolve(data) };
+                },
+            } as any;
+            const inv: ProjectAwareGoalInvocation = {
+                progressLog: {
+                    write: () => { return; },
+                },
+                project: InMemoryProject.of(
+                    { path: ".gitignore", content: "" },
+                    { path: "_config.yml", content: "" },
+                    { path: "_site/.developer.html.s3params", content: `{"Metadata":{"Website-Redirect-Location":"/melba.html"}}\n` },
+                    { path: "_site/not/.index.html.s3params", content: `{"Metadata":{"Website-Redirect-Location":"/9/10.html"}}\n` },
+                    { path: "_site/.melba.html.s3params/a.html", content: `{"Metadata":{"Website-Redirect-Location":"https://atomist.com/"}}\n` },
+                    { path: "_site/index.html", content: "<html></html>\n" },
+                    { path: "_site/developer.html", content: "" },
+                    { path: "_site/melba.html", content: "<html><head>Melba</head></html>\n" },
+                    { path: "_site/9/10.html", content: "" },
+                    { path: "src/index.html", content: "" },
+                    { path: "src/developer.html", content: "" },
+                    { path: "src/melba.md", content: "" },
+                ),
+            } as any;
+            const params: PublishToS3Options = {
+                uniqueName: "test-test",
+                bucketName: "testbucket",
+                region: "us-east-1",
+                filesToPublish: ["_site/**/*"],
+                pathTranslation: fp => fp.replace("_site/", ""),
+                pathToIndex: "/",
+                sync: true,
+            };
+            const res = await pushToS3(s3, inv, params);
+            const eRes = {
+                bucketUrl: "http://testbucket.s3-website.us-east-1.amazonaws.com/",
+                warnings: ["Failed to put '_site/9/10.html' to 's3://testbucket/9/10.html': Permission denied"],
+                fileCount: 4,
+                deleted: 3,
+            };
+            assert.deepStrictEqual(res, eRes);
+            const ePuts = [
+                {
+                    Bucket: "testbucket",
+                    Key: "index.html",
+                    Body: Buffer.from("<html></html>\n"),
+                    ContentType: "text/html",
+                },
+                {
+                    Bucket: "testbucket",
+                    Key: "developer.html",
+                    Body: Buffer.from(""),
+                    ContentType: "text/html",
+                    Metadata: {
+                        "Website-Redirect-Location": "/melba.html",
+                    },
+                },
+                {
+                    Bucket: "testbucket",
+                    Key: "melba.html",
+                    Body: Buffer.from("<html><head>Melba</head></html>\n"),
+                    ContentType: "text/html",
+                },
+            ];
+            assert.deepStrictEqual(puts, ePuts);
+            const eDeletes = [
+                { Key: "post/mornin'!" },
+                { Key: "post/USA" },
+                { Key: "post/Yr Throat" },
+            ];
+            assert.deepStrictEqual(deletes, eDeletes);
         });
 
     });

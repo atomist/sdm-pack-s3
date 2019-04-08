@@ -32,12 +32,12 @@ import {
     slackWarningMessage,
     SoftwareDeliveryMachine,
 } from "@atomist/sdm";
+import { SlackMessage } from "@atomist/slack-messages";
 import {
-    SlackMessage,
-} from "@atomist/slack-messages";
-import { Credentials, S3 } from "aws-sdk";
+    Credentials,
+    S3,
+} from "aws-sdk";
 import * as mime from "mime-types";
-import { promisify } from "util";
 
 /**
  * An array of fileglobs to paths within the project
@@ -132,18 +132,6 @@ export class PublishToS3 extends GoalWithFulfillment {
     }
 }
 
-function putObject(s3: S3, params: S3.PutObjectRequest): () => Promise<S3.PutObjectOutput> {
-    return promisify<S3.PutObjectOutput>(cb => s3.putObject(params, cb));
-}
-
-function listObjects(s3: S3, params: S3.ListObjectsV2Request): () => Promise<S3.ListObjectsV2Output> {
-    return promisify<S3.ListObjectsV2Output>(cb => s3.listObjectsV2(params, cb));
-}
-
-function deleteObjects(s3: S3, params: S3.DeleteObjectsRequest): () => Promise<S3.DeleteObjectsOutput> {
-    return promisify<S3.DeleteObjectsOutput>(cb => s3.deleteObjects(params, cb));
-}
-
 export function executePublishToS3(params: PublishToS3Options): ExecuteGoal {
     if (!params.pathTranslation) {
         params.pathTranslation = p => p;
@@ -203,7 +191,21 @@ interface PushToS3Result {
     deleted: number;
 }
 
-async function pushToS3(s3: S3, inv: ProjectAwareGoalInvocation, params: PublishToS3Options): Promise<PushToS3Result> {
+/**
+ * Push files in project to S3 according to options provided by
+ * `params`.  If a file "X" has a corresponding file ".X.s3params" in
+ * the same directory, the contents of the ".X.s3params" file are
+ * parsed as JSON and merged into the parameters used as the argument
+ * to the S3.putObject function with the former taking precedence,
+ * i.e., the values in ".X.s3params" take override the values this
+ * function uses by default.
+ *
+ * @param s3 S3 client
+ * @param inv goal invocation with project to upload
+ * @param params options for upload
+ * @return information on upload success and warnings
+ */
+export async function pushToS3(s3: S3, inv: ProjectAwareGoalInvocation, params: PublishToS3Options): Promise<PushToS3Result> {
     const { bucketName, filesToPublish, pathTranslation, region } = params;
     const project = inv.project;
     const log = inv.progressLog;
@@ -215,14 +217,28 @@ async function pushToS3(s3: S3, inv: ProjectAwareGoalInvocation, params: Publish
         const key = pathTranslation(file.path, inv);
         const contentType = mime.lookup(file.path) || "text/plain";
         const content = await file.getContentBuffer();
+        let objectParams = {
+            Bucket: bucketName,
+            Key: key,
+            Body: content,
+            ContentType: contentType,
+        };
+        const paramsPath = file.path.replace(new RegExp(file.name + "$"), `.${file.name}.s3params`);
+        const paramsFile = await project.getFile(paramsPath);
+        if (paramsFile) {
+            try {
+                const fileParams = JSON.parse(await paramsFile.getContent());
+                log.write(`Merging in S3 parameters from '${paramsPath}': ${JSON.stringify(fileParams)}`);
+                objectParams = { ...objectParams, ...fileParams };
+            } catch (e) {
+                const msg = `Failed to read and parse S3 params file '${paramsPath}', using defaults: ${e.message}`;
+                log.write(msg);
+                warnings.push(msg);
+            }
+        }
         logger.debug(`File: ${file.path}, key: ${key}, contentType: ${contentType}`);
         try {
-            await putObject(s3, {
-                Bucket: bucketName,
-                Key: key,
-                Body: content,
-                ContentType: contentType,
-            })();
+            await s3.putObject(objectParams).promise();
             keys.push(key);
             log.write(`Put '${file.path}' to 's3://${bucketName}/${key}'`);
         } catch (e) {
@@ -239,15 +255,15 @@ async function pushToS3(s3: S3, inv: ProjectAwareGoalInvocation, params: Publish
             NextContinuationToken: undefined,
         };
         const maxItems = 1000;
-        const deletedKeys: S3.ObjectIdentifier[] = [];
+        const keysToDelete: S3.ObjectIdentifier[] = [];
         while (listObjectsResponse.IsTruncated) {
             try {
-                listObjectsResponse = await listObjects(s3, {
+                listObjectsResponse = await s3.listObjectsV2({
                     Bucket: bucketName,
                     MaxKeys: maxItems,
                     ContinuationToken: listObjectsResponse.NextContinuationToken,
-                })();
-                deletedKeys.push(...filterKeys(keys, listObjectsResponse.Contents));
+                }).promise();
+                keysToDelete.push(...filterKeys(keys, listObjectsResponse.Contents));
             } catch (e) {
                 const msg = `Failed to list objects in 's3://${bucketName}': ${e.message}`;
                 log.write(msg);
@@ -255,15 +271,15 @@ async function pushToS3(s3: S3, inv: ProjectAwareGoalInvocation, params: Publish
                 break;
             }
         }
-        for (let i = 0; i < deletedKeys.length; i += maxItems) {
-            const toDelete = deletedKeys.slice(i, i + maxItems);
+        for (let i = 0; i < keysToDelete.length; i += maxItems) {
+            const deleteNow = keysToDelete.slice(i, i + maxItems);
             try {
-                const deleteObjectsResult = await deleteObjects(s3, {
+                const deleteObjectsResult = await s3.deleteObjects({
                     Bucket: bucketName,
                     Delete: {
-                        Objects: toDelete,
+                        Objects: deleteNow,
                     },
-                })();
+                }).promise();
                 deleted += deleteObjectsResult.Deleted.length;
                 const deletedString = deleteObjectsResult.Deleted.map(o => o.Key).join(",");
                 log.write(`Deleted objects (${deletedString}) in 's3://${bucketName}'`);
@@ -275,7 +291,7 @@ async function pushToS3(s3: S3, inv: ProjectAwareGoalInvocation, params: Publish
                     });
                 }
             } catch (e) {
-                const keysString = toDelete.map(o => o.Key).join(",");
+                const keysString = deleteNow.map(o => o.Key).join(",");
                 const msg = `Failed to delete objects (${keysString}) in 's3://${bucketName}': ${e.message}`;
                 log.write(msg);
                 warnings.push(msg);
