@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased](https://github.com/atomist/sdm-pack-seed/compare/0.3.0...HEAD)
 
+### Added
+
+-   Add putObject parameters from s3params file. [#12](https://github.com/atomist/sdm-pack-s3/issues/12)
+
 ## [0.3.0](https://github.com/atomist/sdm-pack-seed/compare/0.2.0...0.3.0) - 2019-04-05
 
 ### Changed
