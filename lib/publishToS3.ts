@@ -94,6 +94,21 @@ export interface PublishToS3Options {
      * objects in the bucket are deleted.
      */
     sync?: boolean;
+
+    /**
+     * If set, look for hidden files with this extension otherwise
+     * matching the names of files to be uploaded for additional
+     * parameter properties to supply to the argument of S3.putObject.
+     *
+     * For example, if a file "X" is being uploaded and the value of
+     * `paramsExt` is ".s3params" and there is a file ".X.s3params" in
+     * the same directory, the contents of the ".X.s3params" file are
+     * parsed as JSON and merged into the parameters used as the
+     * argument to the S3.putObject function with the former taking
+     * precedence, i.e., the values in ".X.s3params" take override the
+     * default property values.
+     */
+    paramsExt?: string;
 }
 
 /**
@@ -193,12 +208,7 @@ interface PushToS3Result {
 
 /**
  * Push files in project to S3 according to options provided by
- * `params`.  If a file "X" has a corresponding file ".X.s3params" in
- * the same directory, the contents of the ".X.s3params" file are
- * parsed as JSON and merged into the parameters used as the argument
- * to the S3.putObject function with the former taking precedence,
- * i.e., the values in ".X.s3params" take override the values this
- * function uses by default.
+ * `params`.
  *
  * @param s3 S3 client
  * @param inv goal invocation with project to upload
@@ -223,17 +233,20 @@ export async function pushToS3(s3: S3, inv: ProjectAwareGoalInvocation, params: 
             Body: content,
             ContentType: contentType,
         };
-        const paramsPath = file.path.replace(new RegExp(file.name.replace(/[-\\^$*+?.()|[\]{}]/g, "\\$&") + "$"), `.${file.name}.s3params`);
-        const paramsFile = await project.getFile(paramsPath);
-        if (paramsFile) {
-            try {
-                const fileParams = JSON.parse(await paramsFile.getContent());
-                log.write(`Merging in S3 parameters from '${paramsPath}': ${JSON.stringify(fileParams)}`);
-                objectParams = { ...objectParams, ...fileParams };
-            } catch (e) {
-                const msg = `Failed to read and parse S3 params file '${paramsPath}', using defaults: ${e.message}`;
-                log.write(msg);
-                warnings.push(msg);
+        if (params.paramsExt) {
+            const paramsPath = file.path.replace(new RegExp(file.name.replace(/[-\\^$*+?.()|[\]{}]/g, "\\$&") + "$"),
+                `.${file.name}${params.paramsExt}`);
+            const paramsFile = await project.getFile(paramsPath);
+            if (paramsFile) {
+                try {
+                    const fileParams = JSON.parse(await paramsFile.getContent());
+                    log.write(`Merging in S3 parameters from '${paramsPath}': ${JSON.stringify(fileParams)}`);
+                    objectParams = { ...objectParams, ...fileParams };
+                } catch (e) {
+                    const msg = `Failed to read and parse S3 params file '${paramsPath}', using defaults: ${e.message}`;
+                    log.write(msg);
+                    warnings.push(msg);
+                }
             }
         }
         logger.debug(`File: ${file.path}, key: ${key}, contentType: ${contentType}`);

@@ -178,6 +178,7 @@ describe("publishToS3", () => {
                     { path: ".gitignore", content: "" },
                     { path: "_config.yml", content: "" },
                     { path: "_site/.developer.html.s3params", content: `{"WebsiteRedirectLocation":"/melba.html"}\n` },
+                    { path: "_site/.developer.html.s4params", content: `{"StorageClass":"GLACIER"}\n` },
                     { path: "_site/not/.index.html.s3params", content: `{"WebsiteRedirectLocation":"/9/10.html"}\n` },
                     { path: "_site/.melba.html.s3params/a.html", content: `{"WebsiteRedirectLocation":"https://atomist.com/"}\n` },
                     { path: "_site/Let Them Win.jpg/.Let Them Win.jpg.s3params", content: `{"StorageClass":"ONEZONE_IA"}\n` },
@@ -200,6 +201,7 @@ describe("publishToS3", () => {
                 pathTranslation: fp => fp.replace("_site/", ""),
                 pathToIndex: "/",
                 sync: true,
+                paramsExt: ".s3params",
             };
             const res = await pushToS3(s3, inv, params);
             const eRes = {
