@@ -113,21 +113,21 @@ describe("publishToS3", () => {
                         const contents = [
                             {
                                 ETag: "jeff-rosenstock/0",
-                                Key: "post/mornin'!",
+                                Key: "POST-/mornin'!",
                                 LastModified: new Date().toString(),
                                 Size: 0,
                                 StorageClass: "STANDARD",
                             },
                             {
                                 ETag: "jeff-rosenstock/1",
-                                Key: "post/USA",
+                                Key: "POST-/USA",
                                 LastModified: new Date().toString(),
                                 Size: 0,
                                 StorageClass: "STANDARD",
                             },
                             {
                                 ETag: "jeff-rosenstock/2",
-                                Key: "post/Yr Throat",
+                                Key: "POST-/Yr Throat",
                                 LastModified: new Date().toString(),
                                 Size: 0,
                                 StorageClass: "STANDARD",
@@ -177,13 +177,16 @@ describe("publishToS3", () => {
                 project: InMemoryProject.of(
                     { path: ".gitignore", content: "" },
                     { path: "_config.yml", content: "" },
-                    { path: "_site/.developer.html.s3params", content: `{"Metadata":{"Website-Redirect-Location":"/melba.html"}}\n` },
-                    { path: "_site/not/.index.html.s3params", content: `{"Metadata":{"Website-Redirect-Location":"/9/10.html"}}\n` },
-                    { path: "_site/.melba.html.s3params/a.html", content: `{"Metadata":{"Website-Redirect-Location":"https://atomist.com/"}}\n` },
+                    { path: "_site/.developer.html.s3params", content: `{"WebsiteRedirectLocation":"/melba.html"}\n` },
+                    { path: "_site/not/.index.html.s3params", content: `{"WebsiteRedirectLocation":"/9/10.html"}\n` },
+                    { path: "_site/.melba.html.s3params/a.html", content: `{"WebsiteRedirectLocation":"https://atomist.com/"}\n` },
+                    { path: "_site/Let Them Win.jpg/.Let Them Win.jpg.s3params", content: `{"StorageClass":"ONEZONE_IA"}\n` },
                     { path: "_site/index.html", content: "<html></html>\n" },
                     { path: "_site/developer.html", content: "" },
                     { path: "_site/melba.html", content: "<html><head>Melba</head></html>\n" },
                     { path: "_site/9/10.html", content: "" },
+                    { path: "_site/9+10.png", content: "!PNG" },
+                    { path: "_site/Let Them Win.jpg/Let Them Win.jpg", content: "!JPEG" },
                     { path: "src/index.html", content: "" },
                     { path: "src/developer.html", content: "" },
                     { path: "src/melba.md", content: "" },
@@ -202,7 +205,7 @@ describe("publishToS3", () => {
             const eRes = {
                 bucketUrl: "http://testbucket.s3-website.us-east-1.amazonaws.com/",
                 warnings: ["Failed to put '_site/9/10.html' to 's3://testbucket/9/10.html': Permission denied"],
-                fileCount: 4,
+                fileCount: 6,
                 deleted: 3,
             };
             assert.deepStrictEqual(res, eRes);
@@ -218,9 +221,7 @@ describe("publishToS3", () => {
                     Key: "developer.html",
                     Body: Buffer.from(""),
                     ContentType: "text/html",
-                    Metadata: {
-                        "Website-Redirect-Location": "/melba.html",
-                    },
+                    WebsiteRedirectLocation: "/melba.html",
                 },
                 {
                     Bucket: "testbucket",
@@ -228,12 +229,25 @@ describe("publishToS3", () => {
                     Body: Buffer.from("<html><head>Melba</head></html>\n"),
                     ContentType: "text/html",
                 },
+                {
+                    Bucket: "testbucket",
+                    Key: "9+10.png",
+                    Body: Buffer.from("!PNG"),
+                    ContentType: "image/png",
+                },
+                {
+                    Bucket: "testbucket",
+                    Key: "Let Them Win.jpg/Let Them Win.jpg",
+                    Body: Buffer.from("!JPEG"),
+                    ContentType: "image/jpeg",
+                    StorageClass: "ONEZONE_IA",
+                },
             ];
             assert.deepStrictEqual(puts, ePuts);
             const eDeletes = [
-                { Key: "post/mornin'!" },
-                { Key: "post/USA" },
-                { Key: "post/Yr Throat" },
+                { Key: "POST-/mornin'!" },
+                { Key: "POST-/USA" },
+                { Key: "POST-/Yr Throat" },
             ];
             assert.deepStrictEqual(deletes, eDeletes);
         });

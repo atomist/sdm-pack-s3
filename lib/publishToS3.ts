@@ -223,7 +223,7 @@ export async function pushToS3(s3: S3, inv: ProjectAwareGoalInvocation, params: 
             Body: content,
             ContentType: contentType,
         };
-        const paramsPath = file.path.replace(new RegExp(file.name + "$"), `.${file.name}.s3params`);
+        const paramsPath = file.path.replace(new RegExp(file.name.replace(/[-\\^$*+?.()|[\]{}]/g, "\\$&") + "$"), `.${file.name}.s3params`);
         const paramsFile = await project.getFile(paramsPath);
         if (paramsFile) {
             try {
