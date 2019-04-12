@@ -66,7 +66,8 @@ export interface PublishToS3Options {
     region: string;
 
     /**
-     * Select the files to publish
+     * Select the files to publish. This is an array of glob patterns.
+     * For example: [ "target/**\/*", "index.html" ],
      */
     filesToPublish: GlobPatterns;
 
