@@ -17,6 +17,8 @@
 import {
     HandlerContext,
     logger,
+    Project,
+    ProjectFile,
     RepoRef,
 } from "@atomist/automation-client";
 import { doWithFiles } from "@atomist/automation-client/lib/project/util/projectUtils";
@@ -28,6 +30,7 @@ import {
     GoalWithFulfillment,
     LogSuppressor,
     PredicatedGoalDefinition,
+    ProgressLog,
     ProjectAwareGoalInvocation,
     slackWarningMessage,
     SoftwareDeliveryMachine,
@@ -97,8 +100,8 @@ export interface PublishToS3Options {
     sync?: boolean;
 
     /**
-     * If set, look for hidden files with this extension otherwise
-     * matching the names of files to be uploaded for additional
+     * If set, look for hidden files with this extension (otherwise
+     * matching the names of files to be uploaded) for additional
      * parameter properties to supply to the argument of S3.putObject.
      *
      * For example, if a file "X" is being uploaded and the value of
@@ -217,39 +220,133 @@ interface PushToS3Result {
  * @return information on upload success and warnings
  */
 export async function pushToS3(s3: S3, inv: ProjectAwareGoalInvocation, params: PublishToS3Options): Promise<PushToS3Result> {
-    const { bucketName, filesToPublish, pathTranslation, region } = params;
+    const { bucketName, region } = params;
     const project = inv.project;
     const log = inv.progressLog;
-    const warnings: string[] = [];
-    const keys: string[] = [];
+
+    const [fileCount, keysToKeep, warningsFromPut] = await putFiles(project, inv, s3, params);
+    let deleted = 0;
+    let moreWarnings: string[] = [];
+    if (params.sync) {
+        const [keysToDelete, warningsFromGatheringFilesToDelete] = await gatherKeysToDelete(s3, log, keysToKeep, params);
+        const [deletedCount, warningsFromDeletions] = await deleteKeys(s3, log, params, keysToDelete);
+        deleted = deletedCount;
+        moreWarnings = [...warningsFromGatheringFilesToDelete, ...warningsFromDeletions];
+    }
+
+    return {
+        bucketUrl: `http://${bucketName}.s3-website.${region}.amazonaws.com/`,
+        warnings: [...warningsFromPut, ...moreWarnings],
+        fileCount,
+        deleted,
+    };
+}
+
+type QuantityDeleted = number;
+type FilesAttempted = number;
+type SuccessfullyPushedKey = string;
+type Warning = string;
+
+async function deleteKeys(
+    s3: S3,
+    log: ProgressLog,
+    params: PublishToS3Options,
+    keysToDelete: S3.ObjectIdentifier[]): Promise<[QuantityDeleted, Warning[]]> {
+    const { bucketName } = params;
+    let deleted = 0;
+    const warnings: Warning[] = [];
+    const maxItems = 1000;
+    for (let i = 0; i < keysToDelete.length; i += maxItems) {
+        const deleteNow = keysToDelete.slice(i, i + maxItems);
+        try {
+            const deleteObjectsResult = await s3.deleteObjects({
+                Bucket: bucketName,
+                Delete: {
+                    Objects: deleteNow,
+                },
+            }).promise();
+            deleted += deleteObjectsResult.Deleted.length;
+            const deletedString = deleteObjectsResult.Deleted.map(o => o.Key).join(",");
+            log.write(`Deleted objects (${deletedString}) in 's3://${bucketName}'`);
+            if (deleteObjectsResult.Errors && deleteObjectsResult.Errors.length > 0) {
+                deleteObjectsResult.Errors.forEach(e => {
+                    const msg = `Error deleting object '${e.Key}': ${e.Message}`;
+                    log.write(msg);
+                    warnings.push(msg);
+                });
+            }
+        } catch (e) {
+            const keysString = deleteNow.map(o => o.Key).join(",");
+            const msg = `Failed to delete objects (${keysString}) in 's3://${bucketName}': ${e.message}`;
+            log.write(msg);
+            warnings.push(msg);
+            break;
+        }
+    }
+    return [deleted, warnings];
+}
+
+async function gatherKeysToDelete(
+    s3: S3,
+    log: ProgressLog,
+    keysToKeep: SuccessfullyPushedKey[],
+    params: PublishToS3Options): Promise<[S3.ObjectIdentifier[], Warning[]]> {
+
+    const { bucketName } = params;
+    const keysToDelete: S3.ObjectIdentifier[] = [];
+    const warnings: Warning[] = [];
+
+    let listObjectsResponse: S3.ListObjectsV2Output = {
+        IsTruncated: true,
+        NextContinuationToken: undefined,
+    };
+    const maxItems = 1000;
+    while (listObjectsResponse.IsTruncated) {
+        try {
+            listObjectsResponse = await s3.listObjectsV2({
+                Bucket: bucketName,
+                MaxKeys: maxItems,
+                ContinuationToken: listObjectsResponse.NextContinuationToken,
+            }).promise();
+            keysToDelete.push(...filterKeys(keysToKeep, listObjectsResponse.Contents));
+        } catch (e) {
+            const msg = `Failed to list objects in 's3://${bucketName}': ${e.message}`;
+            log.write(msg);
+            warnings.push(msg);
+            break;
+        }
+    }
+
+    return [keysToDelete, warnings];
+}
+
+async function putFiles(project: Project,
+                        inv: GoalInvocation,
+                        s3: S3,
+                        params: PublishToS3Options): Promise<[FilesAttempted, SuccessfullyPushedKey[], Warning[]]> {
+    const { bucketName, filesToPublish, pathTranslation } = params;
     let fileCount = 0;
+    const log = inv.progressLog;
+    const keys: SuccessfullyPushedKey[] = [];
+    const warnings: Warning[] = [];
     await doWithFiles(project, filesToPublish, async file => {
         fileCount++;
         const key = pathTranslation(file.path, inv);
         const contentType = mime.lookup(file.path) || "text/plain";
         const content = await file.getContentBuffer();
-        let objectParams = {
+        let fileParams: Partial<S3.Types.PutObjectRequest> = {};
+        if (params.paramsExt) {
+            const [retrievedFileParams, additionalWarnings] = await gatherParamsFromCompanionFile(project, log, file, params.paramsExt);
+            fileParams = retrievedFileParams;
+            additionalWarnings.forEach(w => warnings.push(w));
+        }
+        const objectParams = {
             Bucket: bucketName,
             Key: key,
             Body: content,
             ContentType: contentType,
+            ...fileParams,
         };
-        if (params.paramsExt) {
-            const paramsPath = file.path.replace(new RegExp(file.name.replace(/[-\\^$*+?.()|[\]{}]/g, "\\$&") + "$"),
-                `.${file.name}${params.paramsExt}`);
-            const paramsFile = await project.getFile(paramsPath);
-            if (paramsFile) {
-                try {
-                    const fileParams = JSON.parse(await paramsFile.getContent());
-                    log.write(`Merging in S3 parameters from '${paramsPath}': ${JSON.stringify(fileParams)}`);
-                    objectParams = { ...objectParams, ...fileParams };
-                } catch (e) {
-                    const msg = `Failed to read and parse S3 params file '${paramsPath}', using defaults: ${e.message}`;
-                    log.write(msg);
-                    warnings.push(msg);
-                }
-            }
-        }
         logger.debug(`File: ${file.path}, key: ${key}, contentType: ${contentType}`);
         try {
             await s3.putObject(objectParams).promise();
@@ -259,67 +356,38 @@ export async function pushToS3(s3: S3, inv: ProjectAwareGoalInvocation, params: 
             const msg = `Failed to put '${file.path}' to 's3://${bucketName}/${key}': ${e.message}`;
             log.write(msg);
             warnings.push(msg);
+            if (e.code === "InvalidAccessKeyId") {
+                log.write("Credential error detected. We should not try any more files");
+            }
         }
     });
+    return [fileCount, keys, warnings];
+}
 
-    let deleted = 0;
-    if (params.sync) {
-        let listObjectsResponse: S3.ListObjectsV2Output = {
-            IsTruncated: true,
-            NextContinuationToken: undefined,
-        };
-        const maxItems = 1000;
-        const keysToDelete: S3.ObjectIdentifier[] = [];
-        while (listObjectsResponse.IsTruncated) {
-            try {
-                listObjectsResponse = await s3.listObjectsV2({
-                    Bucket: bucketName,
-                    MaxKeys: maxItems,
-                    ContinuationToken: listObjectsResponse.NextContinuationToken,
-                }).promise();
-                keysToDelete.push(...filterKeys(keys, listObjectsResponse.Contents));
-            } catch (e) {
-                const msg = `Failed to list objects in 's3://${bucketName}': ${e.message}`;
-                log.write(msg);
-                warnings.push(msg);
-                break;
-            }
-        }
-        for (let i = 0; i < keysToDelete.length; i += maxItems) {
-            const deleteNow = keysToDelete.slice(i, i + maxItems);
-            try {
-                const deleteObjectsResult = await s3.deleteObjects({
-                    Bucket: bucketName,
-                    Delete: {
-                        Objects: deleteNow,
-                    },
-                }).promise();
-                deleted += deleteObjectsResult.Deleted.length;
-                const deletedString = deleteObjectsResult.Deleted.map(o => o.Key).join(",");
-                log.write(`Deleted objects (${deletedString}) in 's3://${bucketName}'`);
-                if (deleteObjectsResult.Errors && deleteObjectsResult.Errors.length > 0) {
-                    deleteObjectsResult.Errors.forEach(e => {
-                        const msg = `Error deleting object '${e.Key}': ${e.Message}`;
-                        log.write(msg);
-                        warnings.push(msg);
-                    });
-                }
-            } catch (e) {
-                const keysString = deleteNow.map(o => o.Key).join(",");
-                const msg = `Failed to delete objects (${keysString}) in 's3://${bucketName}': ${e.message}`;
-                log.write(msg);
-                warnings.push(msg);
-                break;
-            }
-        }
+async function gatherParamsFromCompanionFile(project: Project,
+                                             log: ProgressLog,
+                                             file: ProjectFile,
+                                             companionFileExtension: string): Promise<[Partial<S3.Types.PutObjectRequest>, string[]]> {
+    const companionFilePrefix = ".";
+    const paramsPath = file.path.replace(escapeSpecialCharacters(file.name),
+        `${companionFilePrefix}${file.name}${companionFileExtension}`);
+    const paramsFile = await project.getFile(paramsPath);
+    if (!paramsFile) {
+        return [{}, []];
     }
+    try {
+        const fileParams = JSON.parse(await paramsFile.getContent());
+        log.write(`Merging in S3 parameters from '${paramsPath}': ${JSON.stringify(fileParams)}`);
+        return [fileParams, []];
+    } catch (e) {
+        const msg = `Failed to read and parse S3 params file '${paramsPath}', using defaults: ${e.message}`;
+        log.write(msg);
+        return [{}, [msg]];
+    }
+}
 
-    return {
-        bucketUrl: `http://${bucketName}.s3-website.${region}.amazonaws.com/`,
-        warnings,
-        fileCount,
-        deleted,
-    };
+export function escapeSpecialCharacters(filename: string): RegExp {
+    return new RegExp(filename.replace(/[-\\^$*+?.()|[\]{}]/g, "\\$&") + "$");
 }
 
 /**
