@@ -14,9 +14,16 @@
  * limitations under the License.
  */
 
-import { logger, Project, ProjectFile } from "@atomist/automation-client";
+import {
+    logger,
+    Project,
+    ProjectFile,
+} from "@atomist/automation-client";
 import { doWithFiles } from "@atomist/automation-client/lib/project/util/projectUtils";
-import { GoalInvocation, ProgressLog } from "@atomist/sdm";
+import {
+    GoalInvocation,
+    ProgressLog,
+} from "@atomist/sdm";
 import { S3 } from "aws-sdk";
 import * as mime from "mime-types";
 import { PublishToS3Options } from "./options";

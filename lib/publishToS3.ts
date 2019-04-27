@@ -35,7 +35,10 @@ import {
     Credentials,
     S3,
 } from "aws-sdk";
-import { deleteKeys, gatherKeysToDelete } from "./deleteS3";
+import {
+    deleteKeys,
+    gatherKeysToDelete,
+} from "./deleteS3";
 import { PublishToS3Options } from "./options";
 import { putFiles } from "./putS3";
 
