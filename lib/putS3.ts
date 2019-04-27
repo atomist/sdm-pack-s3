@@ -42,12 +42,7 @@ export async function putFiles(
     const log = inv.progressLog;
     const keys: SuccessfullyPushedKey[] = [];
     const warnings: Warning[] = [];
-    let pleaseGiveUp: boolean = false;
     await doWithFiles(project, filesToPublish, async file => {
-        if (pleaseGiveUp) {
-            log.write("Due to previous error, skipping attempt to write " + file.path);
-            return;
-        }
         fileCount++;
         const key = pathTranslation(file.path, inv);
         const contentType = mime.lookup(file.path) || "text/plain";
@@ -71,22 +66,18 @@ export async function putFiles(
             keys.push(key);
             log.write(`Put '${file.path}' to 's3://${bucketName}/${key}'`);
         } catch (e) {
-            const msg = `Failed to put '${file.path}' to 's3://${bucketName}/${key}': ${e.message}`;
+            const msg = `Failed to put '${file.path}' to 's3://${bucketName}/${key}': ${e.code} ${e.message}`;
             log.write(msg);
             warnings.push(msg);
-            if (e.code === "InvalidAccessKeyId") {
-                log.write("Credential error detected. We should not try any more files");
-                pleaseGiveUp = true;
-            }
         }
     });
     return [fileCount, keys, warnings];
 }
 
 async function gatherParamsFromCompanionFile(project: Project,
-                                             log: ProgressLog,
-                                             file: ProjectFile,
-                                             companionFileExtension: string): Promise<[Partial<S3.Types.PutObjectRequest>, string[]]> {
+    log: ProgressLog,
+    file: ProjectFile,
+    companionFileExtension: string): Promise<[Partial<S3.Types.PutObjectRequest>, string[]]> {
     const companionFilePrefix = ".";
     const paramsPath = file.path.replace(escapeSpecialCharacters(file.name),
         `${companionFilePrefix}${file.name}${companionFileExtension}`);
