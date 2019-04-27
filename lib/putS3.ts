@@ -43,7 +43,6 @@ export async function putFiles(
     const keys: SuccessfullyPushedKey[] = [];
     const warnings: Warning[] = [];
     await doWithFiles(project, filesToPublish, async file => {
-        fileCount++;
         const key = pathTranslation(file.path, inv);
         const contentType = mime.lookup(file.path) || "text/plain";
         const content = await file.getContentBuffer();
@@ -64,9 +63,10 @@ export async function putFiles(
         try {
             await s3.putObject(objectParams).promise();
             keys.push(key);
+            fileCount++;
             log.write(`Put '${file.path}' to 's3://${bucketName}/${key}'`);
         } catch (e) {
-            const msg = `Failed to put '${file.path}' to 's3://${bucketName}/${key}': ${e.code} ${e.message}`;
+            const msg = `Failed to put '${file.path}' to 's3://${bucketName}/${key}': ${e.code}: ${e.message}`;
             log.write(msg);
             warnings.push(msg);
         }
