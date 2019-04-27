@@ -18,9 +18,9 @@ import { InMemoryProject } from "@atomist/automation-client";
 import { ProjectAwareGoalInvocation } from "@atomist/sdm";
 import { S3 } from "aws-sdk";
 import * as assert from "power-assert";
+import { filterKeys } from "../lib/deleteS3";
+import { PublishToS3Options } from "../lib/options";
 import {
-    filterKeys,
-    PublishToS3Options,
     pushToS3,
 } from "../lib/publishToS3";
 
