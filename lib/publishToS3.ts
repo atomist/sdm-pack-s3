@@ -329,7 +329,12 @@ async function putFiles(project: Project,
     const log = inv.progressLog;
     const keys: SuccessfullyPushedKey[] = [];
     const warnings: Warning[] = [];
+    let pleaseGiveUp: boolean = false;
     await doWithFiles(project, filesToPublish, async file => {
+        if (pleaseGiveUp) {
+            log.write("Due to previous error, skipping attempt to write " + file.path);
+            return;
+        }
         fileCount++;
         const key = pathTranslation(file.path, inv);
         const contentType = mime.lookup(file.path) || "text/plain";
@@ -358,6 +363,7 @@ async function putFiles(project: Project,
             warnings.push(msg);
             if (e.code === "InvalidAccessKeyId") {
                 log.write("Credential error detected. We should not try any more files");
+                pleaseGiveUp = true;
             }
         }
     });
