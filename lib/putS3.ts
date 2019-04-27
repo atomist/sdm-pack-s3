@@ -75,9 +75,9 @@ export async function putFiles(
 }
 
 async function gatherParamsFromCompanionFile(project: Project,
-    log: ProgressLog,
-    file: ProjectFile,
-    companionFileExtension: string): Promise<[Partial<S3.Types.PutObjectRequest>, string[]]> {
+                                             log: ProgressLog,
+                                             file: ProjectFile,
+                                             companionFileExtension: string): Promise<[Partial<S3.Types.PutObjectRequest>, string[]]> {
     const companionFilePrefix = ".";
     const paramsPath = file.path.replace(escapeSpecialCharacters(file.name),
         `${companionFilePrefix}${file.name}${companionFileExtension}`);
