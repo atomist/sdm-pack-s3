@@ -114,6 +114,13 @@ export function executePublishToS3(params: PublishToS3Options): ExecuteGoal {
 
                 if (result.warnings.length > 0) {
                     await inv.addressChannels(formatWarningMessage(linkToIndex, result.warnings, inv.id, inv.context));
+
+                    if (result.fileCount === 0) {
+                        return {
+                            code: 1,
+                            message: `0 files uploaded. ${result.warnings.length} warnings, including: ${result.warnings[0]}`,
+                        };
+                    }
                 }
 
                 return {
