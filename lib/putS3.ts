@@ -26,6 +26,7 @@ import {
 } from "@atomist/sdm";
 import { S3 } from "aws-sdk";
 import * as mime from "mime-types";
+import * as path from "path";
 import { PublishToS3Options } from "./options";
 
 type FilesAttempted = number;
@@ -79,8 +80,9 @@ async function gatherParamsFromCompanionFile(project: Project,
                                              file: ProjectFile,
                                              companionFileExtension: string): Promise<[Partial<S3.Types.PutObjectRequest>, string[]]> {
     const companionFilePrefix = ".";
-    const paramsPath = file.path.replace(escapeSpecialCharacters(file.name),
-        `${companionFilePrefix}${file.name}${companionFileExtension}`);
+    const paramsPath = path.dirname(file.path) + path.sep +
+        `${companionFilePrefix}${file.name}${companionFileExtension}`;
+    process.stdout.write("paramsPath: " + paramsPath);
     const paramsFile = await project.getFile(paramsPath);
     if (!paramsFile) {
         return [{}, []];
@@ -94,8 +96,4 @@ async function gatherParamsFromCompanionFile(project: Project,
         log.write(msg);
         return [{}, [msg]];
     }
-}
-
-export function escapeSpecialCharacters(filename: string): RegExp {
-    return new RegExp(filename.replace(/[-\\^$*+?.()|[\]{}]/g, "\\$&") + "$");
 }
