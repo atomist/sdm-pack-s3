@@ -86,6 +86,7 @@ export class PublishToS3 extends GoalWithFulfillment {
 export function executePublishToS3(inputParams: PublishToS3Options): ExecuteGoal {
     const params: PublishToS3Options = {
         pathTranslation: p => p,
+        linkLabel: "S3 Website",
         ...inputParams,
     };
     return doWithProject(
@@ -104,7 +105,7 @@ export function executePublishToS3(inputParams: PublishToS3Options): ExecuteGoal
                 }
                 const result = await pushToS3(s3, inv, params);
 
-                let linkToIndex: string;
+                let linkToIndex: string | undefined;
                 if (params.pathToIndex) {
                     linkToIndex = result.bucketUrl + params.pathTranslation(params.pathToIndex, inv);
                     inv.progressLog.write("URL: " + linkToIndex);
@@ -126,7 +127,7 @@ export function executePublishToS3(inputParams: PublishToS3Options): ExecuteGoal
 
                 return {
                     code: 0,
-                    externalUrls: (linkToIndex) ? [{ label: "S3 website", url: linkToIndex }] : undefined,
+                    externalUrls: (linkToIndex) ? [{ label: params.linkLabel, url: linkToIndex }] : undefined,
                 };
             } catch (e) {
                 return { code: 98, message: e.message };

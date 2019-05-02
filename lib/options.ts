@@ -63,7 +63,7 @@ export interface PublishToS3Options {
 
     /**
      * A label for the link to the uploaded files. This will appear
-     * on the successful goal in a push notification.
+     * on the successful goal in a push notification (when pathToIndex is defined).
      * Default is "S3 Website"
      */
     linkLabel?: string;
