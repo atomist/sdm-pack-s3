@@ -83,10 +83,11 @@ export class PublishToS3 extends GoalWithFulfillment {
     }
 }
 
-export function executePublishToS3(params: PublishToS3Options): ExecuteGoal {
-    if (!params.pathTranslation) {
-        params.pathTranslation = p => p;
-    }
+export function executePublishToS3(inputParams: PublishToS3Options): ExecuteGoal {
+    const params: PublishToS3Options = {
+        pathTranslation: p => p,
+        ...inputParams,
+    };
     return doWithProject(
         async (inv: ProjectAwareGoalInvocation): Promise<ExecuteGoalResult> => {
             if (!inv.id.sha) {
