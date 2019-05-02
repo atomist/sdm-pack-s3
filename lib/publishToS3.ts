@@ -19,12 +19,10 @@ import {
     logger,
     RepoRef,
 } from "@atomist/automation-client";
-import { doWithFiles } from "@atomist/automation-client/lib/project/util/projectUtils";
 import {
     doWithProject,
     ExecuteGoal,
     ExecuteGoalResult,
-    GoalInvocation,
     GoalWithFulfillment,
     LogSuppressor,
     PredicatedGoalDefinition,
@@ -37,80 +35,17 @@ import {
     Credentials,
     S3,
 } from "aws-sdk";
-import * as mime from "mime-types";
+import {
+    deleteKeys,
+    gatherKeysToDelete,
+} from "./deleteS3";
+import { PublishToS3Options } from "./options";
+import { putFiles } from "./putS3";
 
 /**
  * An array of fileglobs to paths within the project
  */
 export type GlobPatterns = string[];
-
-/**
- * Specify how to publish a project's output to S3.
- */
-export interface PublishToS3Options {
-
-    /**
-     * Name of this publish operation. Make it unique per push.
-     */
-    uniqueName: string;
-
-    /**
-     * Name of the bucket. For example: docs.atomist.com
-     */
-    bucketName: string;
-
-    /**
-     * AWS region. For example: us-west-2
-     * This is used to construct a URL that the goal will link to
-     */
-    region: string;
-
-    /**
-     * Select the files to publish. This is an array of glob patterns.
-     * For example: [ "target/**\/*", "index.html" ],
-     */
-    filesToPublish: GlobPatterns;
-
-    /**
-     * Function from a file path within this project to a key (path
-     * within the bucket) where it belongs on S3.  You can use the
-     * invocation to see the SHA and branch, in case you want to
-     * upload to a branch- or commit-specific place inside the bucket.
-     */
-    pathTranslation?: (filePath: string, inv: GoalInvocation) => string;
-
-    /**
-     * The file or path within the project represents the root of the
-     * uploaded site.  This is a path within the project.  It will be
-     * passed to pathTranslation to get the path within the bucket
-     * when generating the link to the completed goal.  If it is not
-     * provided, no externalUrl is provided in the goal result.
-     */
-    pathToIndex?: string;
-
-    /**
-     * If true, delete objects from S3 bucket that do not map to files
-     * in the repository being copied to the bucket.  If false, files
-     * from the repository are copied to the bucket but no existing
-     * objects in the bucket are deleted.
-     */
-    sync?: boolean;
-
-    /**
-     * If set, look for hidden files with this extension otherwise
-     * matching the names of files to be uploaded for additional
-     * parameter properties to supply to the argument of S3.putObject.
-     *
-     * For example, if a file "X" is being uploaded and the value of
-     * `paramsExt` is ".s3params" and there is a file ".X.s3params" in
-     * the same directory, the contents of the ".X.s3params" file are
-     * parsed as JSON and merged into the parameters used as the
-     * argument to the S3.putObject function with the former taking
-     * precedence, i.e., the values in ".X.s3params" take override the
-     * default property values.
-     */
-    paramsExt?: string;
-}
 
 /**
  * Get a goal that will publish (portions of) a project to S3.
@@ -179,6 +114,13 @@ export function executePublishToS3(params: PublishToS3Options): ExecuteGoal {
 
                 if (result.warnings.length > 0) {
                     await inv.addressChannels(formatWarningMessage(linkToIndex, result.warnings, inv.id, inv.context));
+
+                    if (result.fileCount === 0) {
+                        return {
+                            code: 1,
+                            message: `0 files uploaded. ${result.warnings.length} warnings, including: ${result.warnings[0]}`,
+                        };
+                    }
                 }
 
                 return {
@@ -217,118 +159,24 @@ interface PushToS3Result {
  * @return information on upload success and warnings
  */
 export async function pushToS3(s3: S3, inv: ProjectAwareGoalInvocation, params: PublishToS3Options): Promise<PushToS3Result> {
-    const { bucketName, filesToPublish, pathTranslation, region } = params;
+    const { bucketName, region } = params;
     const project = inv.project;
     const log = inv.progressLog;
-    const warnings: string[] = [];
-    const keys: string[] = [];
-    let fileCount = 0;
-    await doWithFiles(project, filesToPublish, async file => {
-        fileCount++;
-        const key = pathTranslation(file.path, inv);
-        const contentType = mime.lookup(file.path) || "text/plain";
-        const content = await file.getContentBuffer();
-        let objectParams = {
-            Bucket: bucketName,
-            Key: key,
-            Body: content,
-            ContentType: contentType,
-        };
-        if (params.paramsExt) {
-            const paramsPath = file.path.replace(new RegExp(file.name.replace(/[-\\^$*+?.()|[\]{}]/g, "\\$&") + "$"),
-                `.${file.name}${params.paramsExt}`);
-            const paramsFile = await project.getFile(paramsPath);
-            if (paramsFile) {
-                try {
-                    const fileParams = JSON.parse(await paramsFile.getContent());
-                    log.write(`Merging in S3 parameters from '${paramsPath}': ${JSON.stringify(fileParams)}`);
-                    objectParams = { ...objectParams, ...fileParams };
-                } catch (e) {
-                    const msg = `Failed to read and parse S3 params file '${paramsPath}', using defaults: ${e.message}`;
-                    log.write(msg);
-                    warnings.push(msg);
-                }
-            }
-        }
-        logger.debug(`File: ${file.path}, key: ${key}, contentType: ${contentType}`);
-        try {
-            await s3.putObject(objectParams).promise();
-            keys.push(key);
-            log.write(`Put '${file.path}' to 's3://${bucketName}/${key}'`);
-        } catch (e) {
-            const msg = `Failed to put '${file.path}' to 's3://${bucketName}/${key}': ${e.message}`;
-            log.write(msg);
-            warnings.push(msg);
-        }
-    });
 
+    const [fileCount, keysToKeep, warningsFromPut] = await putFiles(project, inv, s3, params);
     let deleted = 0;
+    let moreWarnings: string[] = [];
     if (params.sync) {
-        let listObjectsResponse: S3.ListObjectsV2Output = {
-            IsTruncated: true,
-            NextContinuationToken: undefined,
-        };
-        const maxItems = 1000;
-        const keysToDelete: S3.ObjectIdentifier[] = [];
-        while (listObjectsResponse.IsTruncated) {
-            try {
-                listObjectsResponse = await s3.listObjectsV2({
-                    Bucket: bucketName,
-                    MaxKeys: maxItems,
-                    ContinuationToken: listObjectsResponse.NextContinuationToken,
-                }).promise();
-                keysToDelete.push(...filterKeys(keys, listObjectsResponse.Contents));
-            } catch (e) {
-                const msg = `Failed to list objects in 's3://${bucketName}': ${e.message}`;
-                log.write(msg);
-                warnings.push(msg);
-                break;
-            }
-        }
-        for (let i = 0; i < keysToDelete.length; i += maxItems) {
-            const deleteNow = keysToDelete.slice(i, i + maxItems);
-            try {
-                const deleteObjectsResult = await s3.deleteObjects({
-                    Bucket: bucketName,
-                    Delete: {
-                        Objects: deleteNow,
-                    },
-                }).promise();
-                deleted += deleteObjectsResult.Deleted.length;
-                const deletedString = deleteObjectsResult.Deleted.map(o => o.Key).join(",");
-                log.write(`Deleted objects (${deletedString}) in 's3://${bucketName}'`);
-                if (deleteObjectsResult.Errors && deleteObjectsResult.Errors.length > 0) {
-                    deleteObjectsResult.Errors.forEach(e => {
-                        const msg = `Error deleting object '${e.Key}': ${e.Message}`;
-                        log.write(msg);
-                        warnings.push(msg);
-                    });
-                }
-            } catch (e) {
-                const keysString = deleteNow.map(o => o.Key).join(",");
-                const msg = `Failed to delete objects (${keysString}) in 's3://${bucketName}': ${e.message}`;
-                log.write(msg);
-                warnings.push(msg);
-                break;
-            }
-        }
+        const [keysToDelete, warningsFromGatheringFilesToDelete] = await gatherKeysToDelete(s3, log, keysToKeep, params);
+        const [deletedCount, warningsFromDeletions] = await deleteKeys(s3, log, params, keysToDelete);
+        deleted = deletedCount;
+        moreWarnings = [...warningsFromGatheringFilesToDelete, ...warningsFromDeletions];
     }
 
     return {
         bucketUrl: `http://${bucketName}.s3-website.${region}.amazonaws.com/`,
-        warnings,
+        warnings: [...warningsFromPut, ...moreWarnings],
         fileCount,
         deleted,
     };
-}
-
-/**
- * Remove objects that either have no key or match a key in `keys`.
- *
- * @param keys Keys that should be removed from `objects`
- * @param objects Array to filter
- * @return Array of object identifiers
- */
-export function filterKeys(keys: string[], objects: S3.Object[]): S3.ObjectIdentifier[] {
-    return objects.filter(o => o.Key && !keys.includes(o.Key)).map(o => ({ Key: o.Key }));
 }

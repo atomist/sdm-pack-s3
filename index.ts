@@ -15,3 +15,4 @@
  */
 
 export { PublishToS3 } from "./lib/publishToS3";
+export { PublishToS3Options } from "./lib/options";

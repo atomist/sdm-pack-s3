@@ -16,82 +16,12 @@
 
 import { InMemoryProject } from "@atomist/automation-client";
 import { ProjectAwareGoalInvocation } from "@atomist/sdm";
-import { S3 } from "aws-sdk";
+import { AWSError, S3 } from "aws-sdk";
 import * as assert from "power-assert";
-import {
-    filterKeys,
-    PublishToS3Options,
-    pushToS3,
-} from "../lib/publishToS3";
+import { PublishToS3Options } from "../lib/options";
+import { pushToS3 } from "../lib/publishToS3";
 
 describe("publishToS3", () => {
-
-    describe("filterKeys", () => {
-
-        it("should filter out all objects", () => {
-            const k = ["Rage", "Against", "the", "Machine", "RageAgainstTheMachine/01-Bombtrack.mp3"];
-            const o = [
-                { Key: "Rage" },
-                { Key: "Machine" },
-                { Key: "RageAgainstTheMachine/01-Bombtrack.mp3" },
-            ];
-            const r = filterKeys(k, o);
-            assert.deepStrictEqual(r, []);
-        });
-
-        it("should filter out objects without keys", () => {
-            const k = ["Rage", "Against", "the", "Machine", "RageAgainstTheMachine/01-Bombtrack.mp3"];
-            const o = [
-                { Size: 1993 },
-                { ETag: "Rage" },
-                {
-                    Owner: {
-                        DisplayName: "Against",
-                        ID: "TheMachine",
-                    },
-                },
-            ];
-            const r = filterKeys(k, o);
-            assert.deepStrictEqual(r, []);
-        });
-
-        it("should filter objects that do not match keys", () => {
-            const k = ["Rage", "Against", "the", "Machine", "RageAgainstTheMachine/02-KillingInTheName.mp3"];
-            const o = [
-                { Key: "Rage" },
-                { Key: "Machine" },
-                { Key: "RageAgainstTheMachine/01-Bombtrack.mp3" },
-                { Key: "RageAgainstTheMachine/02-KillingInTheName.mp3" },
-                { Key: "RageAgainstTheMachine/03-TakeThePowerBack.mp3" },
-            ];
-            const r = filterKeys(k, o);
-            const e = [
-                { Key: "RageAgainstTheMachine/01-Bombtrack.mp3" },
-                { Key: "RageAgainstTheMachine/03-TakeThePowerBack.mp3" },
-            ];
-            assert.deepStrictEqual(r, e);
-        });
-
-        it("should only filter objects on keys", () => {
-            const k = ["Rage", "Against", "the", "Machine", "RageAgainstTheMachine/02-KillingInTheName.mp3"];
-            const o = [
-                { ETag: "Rage", Key: "AgainstThe" },
-                { Key: "The", StorageClass: "Machine" },
-                { Key: "RageAgainstTheMachine/01-Bombtrack.mp3" },
-                { Key: "RageAgainstTheMachine/02-KillingInTheName.mp3" },
-                { Key: "RageAgainstTheMachine/03-TakeThePowerBack.mp3" },
-            ];
-            const r = filterKeys(k, o);
-            const e = [
-                { Key: "AgainstThe" },
-                { Key: "The" },
-                { Key: "RageAgainstTheMachine/01-Bombtrack.mp3" },
-                { Key: "RageAgainstTheMachine/03-TakeThePowerBack.mp3" },
-            ];
-            assert.deepStrictEqual(r, e);
-        });
-
-    });
 
     describe("pushToS3", () => {
 
@@ -102,7 +32,9 @@ describe("publishToS3", () => {
             const s3: S3 = {
                 putObject: (pars: S3.PutObjectRequest, cb: any) => {
                     if (pars.Key === "9/10.html") {
-                        throw new Error("Permission denied");
+                        const e = new Error("Permission denied");
+                        (e as AWSError).code = "InvalidAccessKeyId";
+                        throw e;
                     }
                     puts.push(pars);
                     const data = { ETag: `${pars.Bucket}:${pars.Key}`, VersionId: "0" };
@@ -206,8 +138,8 @@ describe("publishToS3", () => {
             const res = await pushToS3(s3, inv, params);
             const eRes = {
                 bucketUrl: "http://testbucket.s3-website.us-east-1.amazonaws.com/",
-                warnings: ["Failed to put '_site/9/10.html' to 's3://testbucket/9/10.html': Permission denied"],
-                fileCount: 6,
+                warnings: ["Failed to put '_site/9/10.html' to 's3://testbucket/9/10.html': InvalidAccessKeyId: Permission denied"],
+                fileCount: 5,
                 deleted: 3,
             };
             assert.deepStrictEqual(res, eRes);
