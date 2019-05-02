@@ -62,6 +62,13 @@ export interface PublishToS3Options {
     pathToIndex?: string;
 
     /**
+     * A label for the link to the uploaded files. This will appear
+     * on the successful goal in a push notification (when pathToIndex is defined).
+     * Default is "S3 Website"
+     */
+    linkLabel?: string;
+
+    /**
      * If true, delete objects from S3 bucket that do not map to files
      * in the repository being copied to the bucket.  If false, files
      * from the repository are copied to the bucket but no existing
