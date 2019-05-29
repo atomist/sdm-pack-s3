@@ -35,14 +35,14 @@
     "mime-types": "^2.1.22"
   },
   "peerDependencies": {
-    "@atomist/automation-client": "*",
-    "@atomist/sdm": "*",
-    "@atomist/sdm-core": "*"
+    "@atomist/automation-client": ">=1.5.1",
+    "@atomist/sdm": ">=1.5.0",
+    "@atomist/sdm-core": ">=1.5.0"
   },
   "devDependencies": {
-    "@atomist/automation-client": "^1.4.0",
-    "@atomist/sdm": "^1.4.1",
-    "@atomist/sdm-core": "^1.4.0",
+    "@atomist/automation-client": "^1.5.1",
+    "@atomist/sdm": "^1.5.0",
+    "@atomist/sdm-core": "^1.5.0",
     "@types/mocha": "^5.2.5",
     "@types/power-assert": "^1.5.0",
     "espower-typescript": "^9.0.0",
