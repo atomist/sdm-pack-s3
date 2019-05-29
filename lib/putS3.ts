@@ -82,7 +82,6 @@ async function gatherParamsFromCompanionFile(project: Project,
     const companionFilePrefix = ".";
     const paramsPath = path.dirname(file.path) + path.sep +
         `${companionFilePrefix}${file.name}${companionFileExtension}`;
-    process.stdout.write("paramsPath: " + paramsPath);
     const paramsFile = await project.getFile(paramsPath);
     if (!paramsFile) {
         return [{}, []];
