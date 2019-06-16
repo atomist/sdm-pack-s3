@@ -43,6 +43,7 @@ export async function putFiles(
     const log = inv.progressLog;
     const keys: SuccessfullyPushedKey[] = [];
     const warnings: Warning[] = [];
+    let fatalError = false;
     await doWithFiles(project, filesToPublish, async file => {
         const key = pathTranslation(file.path, inv);
         const contentType = mime.lookup(file.path) || "text/plain";
@@ -61,15 +62,24 @@ export async function putFiles(
             ...fileParams,
         };
         logger.debug(`File: ${file.path}, key: ${key}, contentType: ${contentType}`);
+        if (fatalError) {
+            warnings.push(`Skipping ${key} because of prior serious error`);
+            return;
+        }
         try {
             await s3.putObject(objectParams).promise();
             keys.push(key);
             fileCount++;
             log.write(`Put '${file.path}' to 's3://${bucketName}/${key}'`);
         } catch (e) {
+            if (e.message.includes("Access Denied")) {
+                fatalError = true;
+                log.write("Serious error detected:" + e.message);
+            }
             const msg = `Failed to put '${file.path}' to 's3://${bucketName}/${key}': ${e.code}: ${e.message}`;
             log.write(msg);
             warnings.push(msg);
+
         }
     });
     return [fileCount, keys, warnings];
