@@ -17,3 +17,4 @@ node_modules/
 /log/
 git-info.json
 /lib/typings/types.ts
+*.d.ts.map
