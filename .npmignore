@@ -15,7 +15,6 @@
 /coverage/
 /log/
 /scripts/
-/src/
 /test/
 /CO*.md
 /Dockerfile
