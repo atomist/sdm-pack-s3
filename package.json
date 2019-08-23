@@ -60,10 +60,10 @@
     "test": "test"
   },
   "scripts": {
-    "autotest": "supervisor --watch index.ts,lib,test --extensions ts --no-restart-on exit --quiet --exec npm -- test",
+    "autotest": "supervisor --watch src --extensions ts --no-restart-on exit --quiet --exec npm -- test",
     "build": "run-s compile test lint doc",
     "clean": "run-p clean:compile clean:test clean:doc clean:run",
-    "clean:compile": "rimraf git-info.json \"index.{d.ts,js{,.map}}\" \"{src,lib,test}/**/*.{d.ts{,.map},js{,.map}}\" lib/typings/types.ts",
+    "clean:compile": "rimraf git-info.json \"index.{d.ts,js{,.map}}\" \"{src}/**/*.{d.ts{,.map},js{,.map}}\" lib/typings/types.ts",
     "clean:dist": "run-s clean clean:npm",
     "clean:doc": "rimraf doc",
     "clean:npm": "rimraf node_modules",
@@ -74,8 +74,8 @@
     "doc": "typedoc --mode modules --excludeExternals --ignoreCompilerErrors --exclude \"**/*.d.ts\" --out doc index.ts lib",
     "lint": "tslint --config tslint.json --format verbose --project .",
     "lint:fix": "npm run lint -- --fix",
-    "test": "mocha --require espower-typescript/guess \"test/**/*.test.ts\"",
-    "test:one": "mocha --require espower-typescript/guess \"test/**/${TEST:-*.test.ts}\"",
+    "test": "mocha --require espower-typescript/guess \"src/test/**/*.test.ts\"",
+    "test:one": "mocha --require espower-typescript/guess \"src/test/**/${TEST:-*.test.ts}\"",
     "typedoc": "npm run doc"
   },
   "engines": {
