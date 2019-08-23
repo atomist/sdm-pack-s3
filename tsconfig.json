@@ -21,17 +21,16 @@
     "noImplicitReturns": true,
     "noUnusedLocals": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "outDir": "lib",
   },
   "include": [
-    "index.ts",
     "src/**/*.ts",
     "test/**/*.ts"
   ],
   "exclude": [
     ".#*"
   ],
-  "outputDir": "lib",
   "compileOnSave": true,
   "buildOnSave": false,
   "atom": {
