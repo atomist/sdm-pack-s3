@@ -15,12 +15,9 @@
 /coverage/
 /log/
 /scripts/
-/src/
 /test/
 /CO*.md
 /Dockerfile
 /assets/kubectl/
 *.log
 *.txt
-*.ts
-!*.d.ts
