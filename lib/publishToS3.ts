@@ -32,8 +32,8 @@ import {
 } from "@atomist/sdm";
 import { SlackMessage } from "@atomist/slack-messages";
 import * as AWS from "aws-sdk";
-import {Agent as httpAgent} from "http";
-import {Agent as httpsAgent} from "https";
+import { Agent as httpAgent } from "http";
+import { Agent as httpsAgent } from "https";
 import * as proxy from "proxy-agent";
 import {
     deleteKeys,
