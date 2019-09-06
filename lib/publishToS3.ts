@@ -32,8 +32,6 @@ import {
 } from "@atomist/sdm";
 import { SlackMessage } from "@atomist/slack-messages";
 import * as AWS from "aws-sdk";
-import { Agent as httpAgent } from "http";
-import { Agent as httpsAgent } from "https";
 import * as proxy from "proxy-agent";
 import {
     deleteKeys,
@@ -96,7 +94,8 @@ export function executePublishToS3(inputParams: PublishToS3Options): ExecuteGoal
             }
             if (inputParams.proxy) {
                 AWS.config.update({
-                    httpOptions: { agent: new proxy(inputParams.proxy) as unknown as httpsAgent | httpAgent },
+                    // The output of proxy is ultimately an http|https agent, but the typings don't line up unfortunately
+                    httpOptions: { agent: new proxy(inputParams.proxy) as any },
                 });
             }
             try {
