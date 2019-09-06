@@ -31,10 +31,10 @@ import {
     SoftwareDeliveryMachine,
 } from "@atomist/sdm";
 import { SlackMessage } from "@atomist/slack-messages";
-import {
-    Credentials,
-    S3,
-} from "aws-sdk";
+import * as AWS from "aws-sdk";
+import {Agent as httpAgent} from "http";
+import {Agent as httpsAgent} from "https";
+import * as proxy from "proxy-agent";
 import {
     deleteKeys,
     gatherKeysToDelete,
@@ -94,14 +94,19 @@ export function executePublishToS3(inputParams: PublishToS3Options): ExecuteGoal
             if (!inv.id.sha) {
                 return { code: 99, message: "SHA is not defined. I need that" };
             }
+            if (inputParams.proxy) {
+                AWS.config.update({
+                    httpOptions: { agent: new proxy(inputParams.proxy) as unknown as httpsAgent | httpAgent },
+                });
+            }
             try {
-                let s3: S3;
+                let s3: AWS.S3;
                 if (inv.configuration.sdm.aws && inv.configuration.sdm.aws.accessKey && inv.configuration.sdm.aws.secretKey) {
-                    const credentials = new Credentials(inv.configuration.sdm.aws.accessKey, inv.configuration.sdm.aws.secretKey);
-                    s3 = new S3({ credentials });
+                    const credentials = new AWS.Credentials(inv.configuration.sdm.aws.accessKey, inv.configuration.sdm.aws.secretKey);
+                    s3 = new AWS.S3({ credentials });
                 } else {
                     logger.info(`No AWS keys in SDM configuration, falling back to default credentials`);
-                    s3 = new S3();
+                    s3 = new AWS.S3();
                 }
                 const result = await pushToS3(s3, inv, params);
 
@@ -160,7 +165,7 @@ interface PushToS3Result {
  * @param params options for upload
  * @return information on upload success and warnings
  */
-export async function pushToS3(s3: S3, inv: ProjectAwareGoalInvocation, params: PublishToS3Options): Promise<PushToS3Result> {
+export async function pushToS3(s3: AWS.S3, inv: ProjectAwareGoalInvocation, params: PublishToS3Options): Promise<PushToS3Result> {
     const { bucketName, region } = params;
     const project = inv.project;
     const log = inv.progressLog;
