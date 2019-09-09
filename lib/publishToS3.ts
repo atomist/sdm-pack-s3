@@ -139,7 +139,7 @@ export function executePublishToS3(inputParams: PublishToS3Options): ExecuteGoal
 
 function formatWarningMessage(url: string, warnings: string[], id: RepoRef, ctx: HandlerContext): SlackMessage {
     return slackWarningMessage("Some files were not uploaded to S3", warnings.join("\n"), ctx, {
-        author_name: `published docs from ${id.owner}/${id.repo}#${id.sha.substr(0, 7)}`,
+        author_name: `published files from ${id.owner}/${id.repo}#${id.sha.substr(0, 7)}`,
         author_link: url,
     });
 }
