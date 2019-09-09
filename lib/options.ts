@@ -90,4 +90,9 @@ export interface PublishToS3Options {
      * default property values.
      */
     paramsExt?: string;
+
+    /**
+     * If set, use the proxy string supplied
+     */
+    proxy?: string;
 }
