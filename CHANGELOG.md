@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased](https://github.com/atomist/sdm-pack-s3/compare/0.5.0...HEAD)
 
+### Added
+
+-   Add proxy support. [#25](https://github.com/atomist/sdm-pack-s3/issues/25)
+
 ## [0.5.0](https://github.com/atomist/sdm-pack-s3/compare/0.4.1...0.5.0) - 2019-05-29
 
 ### Added
