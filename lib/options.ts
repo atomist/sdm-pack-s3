@@ -15,7 +15,7 @@
  */
 
 import { GoalInvocation } from "@atomist/sdm";
-import { GlobPatterns } from "./publishToS3";
+import {GlobPatterns, S3DataCallback} from "./publishToS3";
 
 /**
  * Specify how to publish a project's output to S3.
@@ -25,7 +25,7 @@ export interface PublishToS3Options {
     /**
      * Name of this publish operation. Make it unique per push.
      */
-    uniqueName: string;
+    uniqueName?: string;
 
     /**
      * Name of the bucket. For example: docs.atomist.com
@@ -95,4 +95,9 @@ export interface PublishToS3Options {
      * If set, use the proxy string supplied
      */
     proxy?: string;
+
+    /**
+     * Optionally provide a callback to process S3 options prior to goal execution
+     */
+    callback?: S3DataCallback;
 }
