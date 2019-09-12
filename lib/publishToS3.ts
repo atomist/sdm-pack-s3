@@ -25,7 +25,6 @@ import {
     ExecuteGoal,
     ExecuteGoalResult,
     FulfillableGoalWithRegistrations,
-    Implementation,
     PredicatedGoalDefinition,
     ProjectAwareGoalInvocation,
     slackWarningMessage,
@@ -74,11 +73,10 @@ export class PublishToS3 extends FulfillableGoalWithRegistrations<Partial<Publis
     }
 
     public with(registration: Partial<PublishToS3Options>): this {
-        const fulfillment: Implementation = {
-            name: DefaultGoalNameGenerator.generateName("s3-publish"),
+        this.addFulfillment({
+            name: registration.uniqueName || this.options.uniqueName || DefaultGoalNameGenerator.generateName("s3-publish"),
             goalExecutor: executePublishToS3(registration),
-        };
-        this.addFulfillment(fulfillment);
+        });
         return this;
     }
 }
