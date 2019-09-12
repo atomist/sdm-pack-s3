@@ -58,7 +58,7 @@ export type S3DataCallback = (options: Partial<PublishToS3Options>, inv: Project
  * `.withProjectListeners` to get those prerequisite steps done.
  */
 export class PublishToS3 extends FulfillableGoalWithRegistrations<Partial<PublishToS3Options>> {
-    constructor(private readonly options: (PredicatedGoalDefinition & PublishToS3Options) | PredicatedGoalDefinition) {
+    constructor(private readonly options?: (PredicatedGoalDefinition & PublishToS3Options) | PredicatedGoalDefinition) {
         super({
             workingDescription: "Publishing to S3",
             completedDescription: "Published to S3",
