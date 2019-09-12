@@ -14,11 +14,20 @@
  * limitations under the License.
  */
 
-import { GoalInvocation } from "@atomist/sdm";
 import {
-    GlobPatterns,
-    S3DataCallback,
-} from "./publishToS3";
+    GoalInvocation,
+    ProjectAwareGoalInvocation,
+} from "@atomist/sdm";
+
+/**
+ * An array of fileglobs to paths within the project
+ */
+export type GlobPatterns = string[];
+
+/**
+ * A callback that can be used to process the S3 Options prior to upload
+ */
+export type S3DataCallback = (options: Partial<PublishToS3Options>, inv: ProjectAwareGoalInvocation) => Promise<PublishToS3Options>;
 
 /**
  * Specify how to publish a project's output to S3.

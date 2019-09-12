@@ -43,16 +43,6 @@ import { PublishToS3Options } from "./options";
 import { putFiles } from "./putS3";
 
 /**
- * An array of fileglobs to paths within the project
- */
-export type GlobPatterns = string[];
-
-/**
- * A callback that can be used to process the S3 Options prior to upload
- */
-export type S3DataCallback = (options: Partial<PublishToS3Options>, inv: ProjectAwareGoalInvocation) => Promise<PublishToS3Options>;
-
-/**
  * Get a goal that will publish (portions of) a project to S3.
  * If the project needs to be built or otherwise processed first, use
  * `.withProjectListeners` to get those prerequisite steps done.
