@@ -26,7 +26,6 @@ import {
     ExecuteGoalResult,
     FulfillableGoalWithRegistrations,
     Implementation,
-    LogSuppressor,
     PredicatedGoalDefinition,
     ProjectAwareGoalInvocation,
     slackWarningMessage,
@@ -51,7 +50,7 @@ export type GlobPatterns = string[];
 /**
  * A callback that can be used to process the S3 Options prior to upload
  */
-export type S3DataCallback = (options: Partial<PublishToS3Options>, inv: ProjectAwareGoalInvocation) => PublishToS3Options;
+export type S3DataCallback = (options: Partial<PublishToS3Options>, inv: ProjectAwareGoalInvocation) => Promise<PublishToS3Options>;
 
 /**
  * Get a goal that will publish (portions of) a project to S3.
@@ -79,11 +78,7 @@ export class PublishToS3 extends FulfillableGoalWithRegistrations<Partial<Publis
 
         sdm.addStartupListener(async () => {
             if (this.fulfillments.length === 0 && this.callbacks.length === 0) {
-                this.addFulfillment({
-                    name: this.options.uniqueName || DefaultGoalNameGenerator.generateName("s3-publish"),
-                    goalExecutor: executePublishToS3(this.options),
-                    logInterpreter: LogSuppressor,
-                });
+                this.with(this.options);
             }
         });
     }
@@ -106,16 +101,10 @@ export function executePublishToS3(inputParams: Partial<PublishToS3Options>): Ex
     };
     return doWithProject(
         async (inv: ProjectAwareGoalInvocation): Promise<ExecuteGoalResult> => {
-            const data = params.callback ? params.callback(params, inv) : params as PublishToS3Options;
+            const data = params.callback ? await params.callback(params, inv) : params as PublishToS3Options;
 
             // Validation of required prop (post callback)
             for (const requiredProp of ["bucketName", "region", "filesToPublish"]) {
-                if (!Object.keys(data).includes(requiredProp)) {
-                    return {
-                        code: 1,
-                        message: `Missing required option [${requiredProp}]!  Update goal configuration or registration.`,
-                    };
-                }
                 if (_.get(data, requiredProp, undefined) === undefined) {
                     return {
                         code: 1,

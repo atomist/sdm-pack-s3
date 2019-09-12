@@ -15,7 +15,10 @@
  */
 
 import { GoalInvocation } from "@atomist/sdm";
-import {GlobPatterns, S3DataCallback} from "./publishToS3";
+import {
+    GlobPatterns,
+    S3DataCallback,
+} from "./publishToS3";
 
 /**
  * Specify how to publish a project's output to S3.
