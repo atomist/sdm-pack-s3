@@ -47,13 +47,23 @@ import { putFiles } from "./putS3";
  * `.withProjectListeners` to get those prerequisite steps done.
  */
 export class PublishToS3 extends FulfillableGoalWithRegistrations<Partial<PublishToS3Options>> {
-    constructor(private readonly options?: (PredicatedGoalDefinition & PublishToS3Options) | PredicatedGoalDefinition) {
+
+    private readonly options: PublishToS3Options;
+
+    constructor(definitionOptions?: PredicatedGoalDefinition & PublishToS3Options) {
         super({
             workingDescription: "Publishing to S3",
             completedDescription: "Published to S3",
             uniqueName: DefaultGoalNameGenerator.generateName("s3-publisher"),
-            ...options,
+            ...definitionOptions,
         });
+        this.options = {
+            filesToPublish: ["**/*"],
+            linkLabel: "S3 Website",
+            pathTranslation: p => p,
+            region: "us-east-1",
+            ...definitionOptions,
+        };
     }
 
     /**
@@ -72,54 +82,51 @@ export class PublishToS3 extends FulfillableGoalWithRegistrations<Partial<Publis
         });
     }
 
-    public with(registration: Partial<PublishToS3Options>): this {
+    public with(registration: PublishToS3Options): this {
+        const combined = { ...this.options, ...registration };
+        const name = combined.uniqueName || DefaultGoalNameGenerator.generateName("s3-publish");
+        if (!combined.bucketName && !combined.callback) {
+            const msg = `Registration ${name} for PublishToS3 goal ${this.uniqueName} must have either bucketName or callback defined: ` +
+                JSON.stringify(combined);
+            logger.error(msg);
+            throw new Error(msg);
+        }
         this.addFulfillment({
-            name: registration.uniqueName || this.options.uniqueName || DefaultGoalNameGenerator.generateName("s3-publish"),
-            goalExecutor: executePublishToS3(registration),
+            name,
+            goalExecutor: executePublishToS3(combined),
         });
         return this;
     }
 }
 
-export function executePublishToS3(inputParams: Partial<PublishToS3Options>): ExecuteGoal {
-    const params: Partial<PublishToS3Options> = {
-        pathTranslation: p => p,
-        linkLabel: "S3 Website",
-        ...inputParams,
-    };
+export function executePublishToS3(params: PublishToS3Options): ExecuteGoal {
     return doWithProject(
         async (inv: ProjectAwareGoalInvocation): Promise<ExecuteGoalResult> => {
             const data = params.callback ? await params.callback(params, inv) : params as PublishToS3Options;
-
-            // Validation of required prop (post callback)
-            for (const requiredProp of ["bucketName", "region", "filesToPublish"]) {
-                if (_.get(data, requiredProp, undefined) === undefined) {
-                    return {
-                        code: 1,
-                        message: `Required option [${requiredProp}] is undefined!  Update goal configuration or registration.`,
-                    };
-                }
+            if (!data.bucketName) {
+                const msg = `Invalid PublishToS3 goal configuration: bucketName not set in goal, registration, or callback: ${JSON.stringify(data)}`;
+                logger.error(msg);
+                throw new Error(msg);
             }
             if (!inv.id.sha) {
                 return { code: 99, message: "SHA is not defined. I need that" };
             }
 
-            // Set proxy, where required
-            if (inputParams.proxy) {
+            if (params.proxy) {
                 AWS.config.update({
-                    // The output of proxy is ultimately an http|https agent, but the typings don't line up unfortunately
-                    httpOptions: { agent: new proxy(inputParams.proxy) as any },
+                    // The output of proxy is ultimately an http|https agent, but the typings do not line up unfortunately
+                    httpOptions: { agent: new proxy(params.proxy) as any },
                 });
             }
 
-            // Run the publish
             try {
                 let s3: AWS.S3;
                 if (inv.configuration.sdm.aws && inv.configuration.sdm.aws.accessKey && inv.configuration.sdm.aws.secretKey) {
+                    logger.info(`Using AWS credentials from in SDM configuration`);
                     const credentials = new AWS.Credentials(inv.configuration.sdm.aws.accessKey, inv.configuration.sdm.aws.secretKey);
                     s3 = new AWS.S3({ credentials });
                 } else {
-                    logger.info(`No AWS keys in SDM configuration, falling back to default credentials`);
+                    logger.info(`No AWS credentials in SDM configuration, falling back to default credentials`);
                     s3 = new AWS.S3();
                 }
                 const result = await pushToS3(s3, inv, data);
