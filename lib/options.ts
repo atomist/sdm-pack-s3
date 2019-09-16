@@ -14,35 +14,54 @@
  * limitations under the License.
  */
 
-import { GoalInvocation } from "@atomist/sdm";
-import { GlobPatterns } from "./publishToS3";
+import {
+    GoalInvocation,
+    ProjectAwareGoalInvocation,
+} from "@atomist/sdm";
 
 /**
- * Specify how to publish a project's output to S3.
+ * An array of fileglobs to paths within the project
+ */
+export type GlobPatterns = string[];
+
+/**
+ * A callback that can be used to process the S3 Options prior to upload
+ */
+export type S3DataCallback = (options: Partial<PublishToS3Options>, inv: ProjectAwareGoalInvocation) => Promise<PublishToS3Options>;
+
+/**
+ * Specify how to publish project files to an S3 bucket.
  */
 export interface PublishToS3Options {
 
     /**
-     * Name of this publish operation. Make it unique per push.
+     * Name of this publish operation.
      */
-    uniqueName: string;
+    uniqueName?: string;
 
     /**
-     * Name of the bucket. For example: docs.atomist.com
+     * Name of the bucket. For example: docs.atomist.com.
+     *
+     * This must be set when the publish goal executes.  Therefore, it
+     * must provided either when creating the goal, registering the
+     * fulfillment, or by the callback.  If neither it nor a callback
+     * is set when the registration occurs, an error will be thrown.
      */
-    bucketName: string;
+    bucketName?: string;
 
     /**
-     * AWS region. For example: us-west-2
-     * This is used to construct a URL that the goal will link to
+     * AWS region. For example: us-west-2 This is used to construct a
+     * URL that the goal will link to.  If it is not provided,
+     * "us-east-1" is used.
      */
-    region: string;
+    region?: string;
 
     /**
      * Select the files to publish. This is an array of glob patterns.
-     * For example: [ "target/**\/*", "index.html" ],
+     * For example: `["target/**\/*", "index.html"]`.  If it is not
+     * provided, `["**\/*"]` is used.
      */
-    filesToPublish: GlobPatterns;
+    filesToPublish?: GlobPatterns;
 
     /**
      * Function from a file path within this project to a key (path
@@ -95,4 +114,9 @@ export interface PublishToS3Options {
      * If set, use the proxy string supplied
      */
     proxy?: string;
+
+    /**
+     * Optionally provide a callback to process S3 options prior to goal execution
+     */
+    callback?: S3DataCallback;
 }
