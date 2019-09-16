@@ -102,7 +102,7 @@ export class PublishToS3 extends FulfillableGoalWithRegistrations<Partial<Publis
 export function executePublishToS3(params: PublishToS3Options): ExecuteGoal {
     return doWithProject(
         async (inv: ProjectAwareGoalInvocation): Promise<ExecuteGoalResult> => {
-            const data = params.callback ? await params.callback(params, inv) : params as PublishToS3Options;
+            const data = params.callback ? await params.callback(params, inv) : params;
             if (!data.bucketName) {
                 const msg = `Invalid PublishToS3 goal configuration: bucketName not set in goal, registration, or callback: ${JSON.stringify(data)}`;
                 logger.error(msg);
