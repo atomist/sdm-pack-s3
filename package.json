@@ -32,6 +32,7 @@
     "@types/mime-types": "^2.1.0",
     "aws-sdk": "^2.409.0",
     "fs-extra": "^7.0.1",
+    "json-stringify-safe": "^5.0.1",
     "mime-types": "^2.1.22",
     "proxy-agent": "^3.1.0"
   },
