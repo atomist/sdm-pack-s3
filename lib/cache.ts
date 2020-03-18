@@ -14,9 +14,12 @@
  * limitations under the License.
  */
 
-import {doWithRetry} from "@atomist/automation-client";
-import {CacheConfiguration, GoalInvocation} from "@atomist/sdm";
-import {GoalCacheArchiveStore} from "@atomist/sdm-core";
+import { doWithRetry } from "@atomist/automation-client";
+import {
+    CacheConfiguration,
+    GoalInvocation,
+} from "@atomist/sdm";
+import { GoalCacheArchiveStore } from "@atomist/sdm-core";
 import * as AWS from "aws-sdk";
 import * as fs from "fs-extra";
 

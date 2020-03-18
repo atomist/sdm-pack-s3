@@ -15,7 +15,7 @@
  */
 
 import { guid } from "@atomist/automation-client/lib/internal/util/string";
-import {GoalInvocation} from "@atomist/sdm";
+import { GoalInvocation } from "@atomist/sdm";
 import * as assert from "assert";
 import * as AWS from "aws-sdk";
 import * as fs from "fs-extra";
