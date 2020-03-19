@@ -51,6 +51,34 @@ Add this publish goal to one of your goal sets.
     );
 ```
 
+## Using S3 Goal Caching Support
+
+This pack contains a goal cache implementation that uses S3.  This is useful to allow your goal caching solution to
+scale as you scale SDM instances.   
+
+To enable use a configuration preProcessor:
+```typescript
+preProcessors: [
+    async cfg => {
+      return _.merge(cfg, {
+        sdm: {
+          cache: {
+            enabled: true,
+            bucket: "mytest-bucket",
+            store:  new CompressingGoalCache(new S3GoalCacheArchiveStore()),
+          },
+        },
+      });
+    },
+  ],
+```
+
+Required configuration for `S3GoalCacheArchiveStore`:
+
+* Bucket: (shown above) Used to set the S3 bucket to upload data to
+* AWS Credentials.  These should be available either in the environment or through the metadata service (in the case of
+using IAM roles).
+
 ## Getting started
 
 See the [Developer Quick Start][atomist-quick] to jump straight to
