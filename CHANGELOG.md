@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 -   Add proxy support. [#25](https://github.com/atomist/sdm-pack-s3/issues/25)
+-   Add S3 Goal Cache Support. [#30](https://github.com/atomist/sdm-pack-s3/issues/30)
 
 ## [0.5.0](https://github.com/atomist/sdm-pack-s3/compare/0.4.1...0.5.0) - 2019-05-29
 
