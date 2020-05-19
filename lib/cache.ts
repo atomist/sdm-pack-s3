@@ -25,6 +25,9 @@ import * as fs from "fs-extra";
 
 export interface S3CacheConfiguration extends CacheConfiguration {
     cache?: {
+        /** Set AWS Region */
+        region?: string;
+
         /**
          * AWS S3 bucket to perist cache entries to.  If
          * not provided, it defaults to
@@ -78,6 +81,12 @@ export class S3GoalCacheArchiveStore implements GoalCacheArchiveStore {
     private async awsS3(gi: GoalInvocation, classifier: string, op: AwsOp, verb: string): Promise<string> {
         const cacheConfig = getCacheConfig(gi);
         const cachePath = getCachePath(cacheConfig, classifier);
+
+        // Set region when supplied
+        if (cacheConfig.region) {
+            AWS.config.update({region: cacheConfig.region});
+        }
+
         const storage =  new AWS.S3();
         const objectUri = `s3://${cacheConfig.bucket}/${cachePath}`;
         const gerund = verb.replace(/e$/, "ing");
