@@ -106,7 +106,7 @@ describe("cache", () => {
                 bucket: "you-aint-goin-nowhere",
                 enabled: true,
                 path: "lazy/days",
-                region: "us-east2"
+                region: "us-east2",
             };
             const c = "i-am-a-pilgrim";
             const p = getCachePath(cc, c);
