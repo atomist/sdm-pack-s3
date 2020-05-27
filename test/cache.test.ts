@@ -33,6 +33,9 @@ describe("cache", () => {
                 configuration: {
                     name: "sweetheart-of-the-rodeo",
                     sdm: {
+                        cache: {
+                            region: "us-east2",
+                        },
                     },
                 },
                 context: {
@@ -44,6 +47,7 @@ describe("cache", () => {
                 bucket: "sdm-th3by4d5-sweetheart-of-the-rodeo-goal-cache",
                 enabled: false,
                 path: "goal-cache",
+                region: "us-east2",
             };
             assert.deepStrictEqual(c, e);
         });
@@ -102,6 +106,7 @@ describe("cache", () => {
                 bucket: "you-aint-goin-nowhere",
                 enabled: true,
                 path: "lazy/days",
+                region: "us-east2",
             };
             const c = "i-am-a-pilgrim";
             const p = getCachePath(cc, c);
@@ -138,6 +143,7 @@ describe("cache", () => {
                             bucket: b,
                             enabled: true,
                             path: p,
+                            region: "us-east2",
                         },
                     },
                 },
