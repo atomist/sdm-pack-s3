@@ -20,6 +20,7 @@ import * as path from "path";
 import { PublishToS3Options } from "./options";
 import {GoalInvocation} from "@atomist/sdm/lib/api/goal/GoalInvocation";
 import {doWithFiles} from "@atomist/automation-client/lib/project/util/projectUtils";
+import {File} from "@atomist/automation-client/lib/project/File";
 import {logger} from "@atomist/automation-client/lib/util/logger";
 import {ProgressLog} from "@atomist/sdm/lib/spi/log/ProgressLog";
 import {Project} from "@atomist/automation-client/lib/project/Project";
@@ -72,7 +73,7 @@ export async function putFiles(
 
 async function gatherParamsFromCompanionFile(project: Project,
                                              log: ProgressLog,
-                                             file: ProjectFile,
+                                             file: File,
                                              companionFileExtension: string): Promise<[Partial<S3.Types.PutObjectRequest>, string[]]> {
     const companionFilePrefix = ".";
     const paramsPath = path.dirname(file.path) + path.sep +
