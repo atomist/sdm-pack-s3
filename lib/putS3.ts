@@ -14,20 +14,16 @@
  * limitations under the License.
  */
 
-import {
-    logger,
-    Project,
-    ProjectFile,
-} from "@atomist/automation-client";
-import { doWithFiles } from "@atomist/automation-client/lib/project/util/projectUtils";
-import {
-    GoalInvocation,
-    ProgressLog,
-} from "@atomist/sdm";
-import { S3 } from "aws-sdk";
+import {File} from "@atomist/automation-client/lib/project/File";
+import {Project} from "@atomist/automation-client/lib/project/Project";
+import {doWithFiles} from "@atomist/automation-client/lib/project/util/projectUtils";
+import {logger} from "@atomist/automation-client/lib/util/logger";
+import {GoalInvocation} from "@atomist/sdm/lib/api/goal/GoalInvocation";
+import {ProgressLog} from "@atomist/sdm/lib/spi/log/ProgressLog";
+import {S3} from "aws-sdk";
 import * as mime from "mime-types";
 import * as path from "path";
-import { PublishToS3Options } from "./options";
+import {PublishToS3Options} from "./options";
 
 type FilesAttempted = number;
 type SuccessfullyPushedKey = string;
@@ -38,12 +34,13 @@ export async function putFiles(
     inv: GoalInvocation,
     s3: S3,
     params: PublishToS3Options): Promise<[FilesAttempted, SuccessfullyPushedKey[], Warning[]]> {
-    const { bucketName, filesToPublish, pathTranslation } = params;
+    const {bucketName, filesToPublish, pathTranslation} = params;
     let fileCount = 0;
     const log = inv.progressLog;
     const keys: SuccessfullyPushedKey[] = [];
     const warnings: Warning[] = [];
-    await doWithFiles(project, filesToPublish, async file => {
+
+    await doWithFiles(project, [...filesToPublish, "!**/.*", "!**/.*/**/*"], async file => {
         const key = pathTranslation(file.path, inv);
         const contentType = mime.lookup(file.path) || "text/plain";
         const content = await file.getContentBuffer();
@@ -77,15 +74,18 @@ export async function putFiles(
 
 async function gatherParamsFromCompanionFile(project: Project,
                                              log: ProgressLog,
-                                             file: ProjectFile,
+                                             file: File,
                                              companionFileExtension: string): Promise<[Partial<S3.Types.PutObjectRequest>, string[]]> {
     const companionFilePrefix = ".";
+    // presume this is a normal file, and look to see if a special `.${file.name}${companionFileExtension}` file exists.
     const paramsPath = path.dirname(file.path) + path.sep +
         `${companionFilePrefix}${file.name}${companionFileExtension}`;
     const paramsFile = await project.getFile(paramsPath);
+    // if no such file exists, return no extra params
     if (!paramsFile) {
         return [{}, []];
     }
+    // otherwise merge params
     try {
         const fileParams = JSON.parse(await paramsFile.getContent());
         log.write(`Merging in S3 parameters from '${paramsPath}': ${JSON.stringify(fileParams)}`);

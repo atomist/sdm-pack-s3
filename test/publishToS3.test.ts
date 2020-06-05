@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { InMemoryProject } from "@atomist/automation-client";
-import { ProjectAwareGoalInvocation } from "@atomist/sdm";
+import {InMemoryProject} from "@atomist/automation-client/lib/project/mem/InMemoryProject";
+import {ProjectAwareGoalInvocation} from "@atomist/sdm/lib/api-helper/project/withProject";
 import { AWSError, S3 } from "aws-sdk";
 import * as assert from "power-assert";
 import { PublishToS3Options } from "../lib/options";
@@ -152,13 +152,6 @@ describe("publishToS3", () => {
                 },
                 {
                     Bucket: "testbucket",
-                    Key: "developer.html",
-                    Body: Buffer.from(""),
-                    ContentType: "text/html",
-                    WebsiteRedirectLocation: "/melba.html",
-                },
-                {
-                    Bucket: "testbucket",
                     Key: "melba.html",
                     Body: Buffer.from("<html><head>Melba</head></html>\n"),
                     ContentType: "text/html",
@@ -168,6 +161,13 @@ describe("publishToS3", () => {
                     Key: "9+10.png",
                     Body: Buffer.from("!PNG"),
                     ContentType: "image/png",
+                },
+                {
+                    Bucket: "testbucket",
+                    Key: "developer.html",
+                    Body: Buffer.from(""),
+                    ContentType: "text/html",
+                    WebsiteRedirectLocation: "/melba.html",
                 },
                 {
                     Bucket: "testbucket",

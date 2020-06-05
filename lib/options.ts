@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { GoalInvocation } from "@atomist/sdm";
+import {GoalInvocation} from "@atomist/sdm/lib/api/goal/GoalInvocation";
 import { GlobPatterns } from "./publishToS3";
 
 /**

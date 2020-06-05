@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ProgressLog } from "@atomist/sdm";
+import {ProgressLog} from "@atomist/sdm/lib/spi/log/ProgressLog";
 import { S3 } from "aws-sdk";
 import { PublishToS3Options } from "./options";
 
