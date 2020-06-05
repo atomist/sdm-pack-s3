@@ -39,13 +39,16 @@ export async function putFiles(
     const log = inv.progressLog;
     const keys: SuccessfullyPushedKey[] = [];
     const warnings: Warning[] = [];
-    await doWithFiles(project, filesToPublish, async file => {
+
+    await doWithFiles(project, [ ...filesToPublish, "!**/.*", "!**/.*/**/*" ], async file => {
+        console.error(`putFiles.doWithFiles: ${JSON.stringify({filesToPublish, file})}`)
         const key = pathTranslation(file.path, inv);
         const contentType = mime.lookup(file.path) || "text/plain";
         const content = await file.getContentBuffer();
         let fileParams: Partial<S3.Types.PutObjectRequest> = {};
         if (params.paramsExt) {
             const [retrievedFileParams, additionalWarnings] = await gatherParamsFromCompanionFile(project, log, file, params.paramsExt);
+            console.error(JSON.stringify({t: "putFiles: gatherParamsFromCompanionFile", retrievedFileParams, additionalWarnings, paramsExt: params.paramsExt}))
             fileParams = retrievedFileParams;
             additionalWarnings.forEach(w => warnings.push(w));
         }
@@ -76,12 +79,16 @@ async function gatherParamsFromCompanionFile(project: Project,
                                              file: File,
                                              companionFileExtension: string): Promise<[Partial<S3.Types.PutObjectRequest>, string[]]> {
     const companionFilePrefix = ".";
+    // presume this is a normal file, and look to see if a special `.${file.name}${companionFileExtension}` file exists.
     const paramsPath = path.dirname(file.path) + path.sep +
         `${companionFilePrefix}${file.name}${companionFileExtension}`;
+    console.error(JSON.stringify({t: "gatherParamsFromCompanionFile", paramsPath, path: file.path}))
     const paramsFile = await project.getFile(paramsPath);
+    // if no such file exists, return no extra params
     if (!paramsFile) {
         return [{}, []];
     }
+    // otherwise merge params
     try {
         const fileParams = JSON.parse(await paramsFile.getContent());
         log.write(`Merging in S3 parameters from '${paramsPath}': ${JSON.stringify(fileParams)}`);

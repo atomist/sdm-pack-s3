@@ -36,6 +36,7 @@ describe("publishToS3", () => {
                         (e as AWSError).code = "InvalidAccessKeyId";
                         throw e;
                     }
+                    console.error(`puts.length: ${puts.length}; pars: ${JSON.stringify(pars)}`)
                     puts.push(pars);
                     const data = { ETag: `${pars.Bucket}:${pars.Key}`, VersionId: "0" };
                     return { promise: () => Promise.resolve(data) };
@@ -135,7 +136,9 @@ describe("publishToS3", () => {
                 sync: true,
                 paramsExt: ".s3params",
             };
+            console.error(JSON.stringify({t: "test PublishToS3Opts", params}))
             const res = await pushToS3(s3, inv, params);
+            console.error(JSON.stringify({t: "test pushToS3", res}))
             const eRes = {
                 bucketUrl: "http://testbucket.s3-website.us-east-1.amazonaws.com/",
                 warnings: ["Failed to put '_site/9/10.html' to 's3://testbucket/9/10.html': InvalidAccessKeyId: Permission denied"],
@@ -152,13 +155,6 @@ describe("publishToS3", () => {
                 },
                 {
                     Bucket: "testbucket",
-                    Key: "developer.html",
-                    Body: Buffer.from(""),
-                    ContentType: "text/html",
-                    WebsiteRedirectLocation: "/melba.html",
-                },
-                {
-                    Bucket: "testbucket",
                     Key: "melba.html",
                     Body: Buffer.from("<html><head>Melba</head></html>\n"),
                     ContentType: "text/html",
@@ -168,6 +164,13 @@ describe("publishToS3", () => {
                     Key: "9+10.png",
                     Body: Buffer.from("!PNG"),
                     ContentType: "image/png",
+                },
+                {
+                    Bucket: "testbucket",
+                    Key: "developer.html",
+                    Body: Buffer.from(""),
+                    ContentType: "text/html",
+                    WebsiteRedirectLocation: "/melba.html",
                 },
                 {
                     Bucket: "testbucket",

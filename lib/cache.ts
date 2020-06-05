@@ -16,9 +16,9 @@
 
 import * as AWS from "aws-sdk";
 import * as fs from "fs-extra";
-import {GoalInvocation} from "@atomist/sdm/lib/api/goal/GoalInvocation";
-import {GoalCacheArchiveStore} from "@atomist/sdm-core/lib/goal/cache/CompressingGoalCache";
 import {CacheConfiguration} from "@atomist/sdm/lib/api/machine/SoftwareDeliveryMachineOptions";
+import {GoalCacheArchiveStore} from "@atomist/sdm-core/lib/goal/cache/CompressingGoalCache";
+import {GoalInvocation} from "@atomist/sdm/lib/api/goal/GoalInvocation";
 import {doWithRetry} from "@atomist/automation-client/lib/util/retry";
 
 export interface S3CacheConfiguration extends CacheConfiguration {
