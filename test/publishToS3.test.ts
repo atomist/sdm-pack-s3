@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { InMemoryProject } from "@atomist/automation-client";
-import { ProjectAwareGoalInvocation } from "@atomist/sdm";
 import { AWSError, S3 } from "aws-sdk";
 import * as assert from "power-assert";
 import { PublishToS3Options } from "../lib/options";
 import { pushToS3 } from "../lib/publishToS3";
+import {ProjectAwareGoalInvocation} from "@atomist/sdm/lib/api-helper/project/withProject";
+import {InMemoryProject} from "@atomist/automation-client/lib/project/mem/InMemoryProject";
 
 describe("publishToS3", () => {
 

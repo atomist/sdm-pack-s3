@@ -15,7 +15,6 @@
  */
 
 import { guid } from "@atomist/automation-client/lib/internal/util/string";
-import { GoalInvocation } from "@atomist/sdm";
 import * as assert from "assert";
 import * as AWS from "aws-sdk";
 import * as fs from "fs-extra";
@@ -23,6 +22,7 @@ import * as stringify from "json-stringify-safe";
 import * as os from "os";
 import * as path from "path";
 import {getCacheConfig, getCachePath, S3GoalCacheArchiveStore} from "../lib/cache";
+import {GoalInvocation} from "@atomist/sdm/lib/api/goal/GoalInvocation";
 
 describe("cache", () => {
 
