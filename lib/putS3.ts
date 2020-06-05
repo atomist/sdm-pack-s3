@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-import * as mime from "mime-types";
-import {S3,} from "aws-sdk";
-import * as path from "path";
-import { PublishToS3Options } from "./options";
-import {GoalInvocation} from "@atomist/sdm/lib/api/goal/GoalInvocation";
-import {doWithFiles} from "@atomist/automation-client/lib/project/util/projectUtils";
 import {File} from "@atomist/automation-client/lib/project/File";
-import {logger} from "@atomist/automation-client/lib/util/logger";
-import {ProgressLog} from "@atomist/sdm/lib/spi/log/ProgressLog";
 import {Project} from "@atomist/automation-client/lib/project/Project";
+import {doWithFiles} from "@atomist/automation-client/lib/project/util/projectUtils";
+import {logger} from "@atomist/automation-client/lib/util/logger";
+import {GoalInvocation} from "@atomist/sdm/lib/api/goal/GoalInvocation";
+import {ProgressLog} from "@atomist/sdm/lib/spi/log/ProgressLog";
+import {S3} from "aws-sdk";
+import * as mime from "mime-types";
+import * as path from "path";
+import {PublishToS3Options} from "./options";
 
 type FilesAttempted = number;
 type SuccessfullyPushedKey = string;
@@ -34,14 +34,14 @@ export async function putFiles(
     inv: GoalInvocation,
     s3: S3,
     params: PublishToS3Options): Promise<[FilesAttempted, SuccessfullyPushedKey[], Warning[]]> {
-    const { bucketName, filesToPublish, pathTranslation } = params;
+    const {bucketName, filesToPublish, pathTranslation} = params;
     let fileCount = 0;
     const log = inv.progressLog;
     const keys: SuccessfullyPushedKey[] = [];
     const warnings: Warning[] = [];
 
-    await doWithFiles(project, [ ...filesToPublish, "!**/.*", "!**/.*/**/*" ], async file => {
-        console.error(`putFiles.doWithFiles: ${JSON.stringify({filesToPublish, file})}`)
+    await doWithFiles(project, [...filesToPublish, "!**/.*", "!**/.*/**/*"], async file => {
+        console.error(`putFiles.doWithFiles: ${JSON.stringify({filesToPublish, file})}`);
         const key = pathTranslation(file.path, inv);
         const contentType = mime.lookup(file.path) || "text/plain";
         const content = await file.getContentBuffer();

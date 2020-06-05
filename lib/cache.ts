@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import * as AWS from "aws-sdk";
-import * as fs from "fs-extra";
-import {CacheConfiguration} from "@atomist/sdm/lib/api/machine/SoftwareDeliveryMachineOptions";
+import {doWithRetry} from "@atomist/automation-client/lib/util/retry";
 import {GoalCacheArchiveStore} from "@atomist/sdm-core/lib/goal/cache/CompressingGoalCache";
 import {GoalInvocation} from "@atomist/sdm/lib/api/goal/GoalInvocation";
-import {doWithRetry} from "@atomist/automation-client/lib/util/retry";
+import {CacheConfiguration} from "@atomist/sdm/lib/api/machine/SoftwareDeliveryMachineOptions";
+import * as AWS from "aws-sdk";
+import * as fs from "fs-extra";
 
 export interface S3CacheConfiguration extends CacheConfiguration {
     cache?: {

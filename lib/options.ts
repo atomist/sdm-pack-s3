@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { GlobPatterns } from "./publishToS3";
 import {GoalInvocation} from "@atomist/sdm/lib/api/goal/GoalInvocation";
+import { GlobPatterns } from "./publishToS3";
 
 /**
  * Specify how to publish a project's output to S3.

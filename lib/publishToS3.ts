@@ -14,6 +14,16 @@
  * limitations under the License.
  */
 
+import {HandlerContext} from "@atomist/automation-client/lib/HandlerContext";
+import {RepoRef} from "@atomist/automation-client/lib/operations/common/RepoId";
+import {logger} from "@atomist/automation-client/lib/util/logger";
+import {LogSuppressor} from "@atomist/sdm/lib/api-helper/log/logInterpreters";
+import {slackWarningMessage} from "@atomist/sdm/lib/api-helper/misc/slack/messages";
+import {doWithProject, ProjectAwareGoalInvocation} from "@atomist/sdm/lib/api-helper/project/withProject";
+import {ExecuteGoalResult} from "@atomist/sdm/lib/api/goal/ExecuteGoalResult";
+import {ExecuteGoal} from "@atomist/sdm/lib/api/goal/GoalInvocation";
+import {GoalWithFulfillment, PredicatedGoalDefinition} from "@atomist/sdm/lib/api/goal/GoalWithFulfillment";
+import {SoftwareDeliveryMachine} from "@atomist/sdm/lib/api/machine/SoftwareDeliveryMachine";
 import { SlackMessage } from "@atomist/slack-messages";
 import * as AWS from "aws-sdk";
 import * as proxy from "proxy-agent";
@@ -23,16 +33,6 @@ import {
 } from "./deleteS3";
 import { PublishToS3Options } from "./options";
 import { putFiles } from "./putS3";
-import {doWithProject, ProjectAwareGoalInvocation} from "@atomist/sdm/lib/api-helper/project/withProject";
-import {slackWarningMessage} from "@atomist/sdm/lib/api-helper/misc/slack/messages";
-import {GoalWithFulfillment, PredicatedGoalDefinition} from "@atomist/sdm/lib/api/goal/GoalWithFulfillment";
-import {logger} from "@atomist/automation-client/lib/util/logger";
-import {RepoRef} from "@atomist/automation-client/lib/operations/common/RepoId";
-import {HandlerContext} from "@atomist/automation-client/lib/HandlerContext";
-import {SoftwareDeliveryMachine} from "@atomist/sdm/lib/api/machine/SoftwareDeliveryMachine";
-import {ExecuteGoal} from "@atomist/sdm/lib/api/goal/GoalInvocation";
-import {LogSuppressor} from "@atomist/sdm/lib/api-helper/log/logInterpreters";
-import {ExecuteGoalResult} from "@atomist/sdm/lib/api/goal/ExecuteGoalResult";
 
 /**
  * An array of file-globs to paths within the project
