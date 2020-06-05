@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { S3 } from "aws-sdk";
 import * as mime from "mime-types";
+import {S3,} from "aws-sdk";
 import * as path from "path";
 import { PublishToS3Options } from "./options";
 import {GoalInvocation} from "@atomist/sdm/lib/api/goal/GoalInvocation";
@@ -48,7 +48,7 @@ export async function putFiles(
         let fileParams: Partial<S3.Types.PutObjectRequest> = {};
         if (params.paramsExt) {
             const [retrievedFileParams, additionalWarnings] = await gatherParamsFromCompanionFile(project, log, file, params.paramsExt);
-            console.error(JSON.stringify({t: "putFiles: gatherParamsFromCompanionFile", retrievedFileParams, additionalWarnings, paramsExt: params.paramsExt}))
+            // console.error(JSON.stringify({t: "putFiles: gatherParamsFromCompanionFile", retrievedFileParams, additionalWarnings, paramsExt: params.paramsExt}))
             fileParams = retrievedFileParams;
             additionalWarnings.forEach(w => warnings.push(w));
         }
@@ -82,7 +82,7 @@ async function gatherParamsFromCompanionFile(project: Project,
     // presume this is a normal file, and look to see if a special `.${file.name}${companionFileExtension}` file exists.
     const paramsPath = path.dirname(file.path) + path.sep +
         `${companionFilePrefix}${file.name}${companionFileExtension}`;
-    console.error(JSON.stringify({t: "gatherParamsFromCompanionFile", paramsPath, path: file.path}))
+    // console.error(JSON.stringify({t: "gatherParamsFromCompanionFile", paramsPath, path: file.path}))
     const paramsFile = await project.getFile(paramsPath);
     // if no such file exists, return no extra params
     if (!paramsFile) {
