@@ -163,19 +163,14 @@ export async function pushToS3(s3: AWS.S3, inv: ProjectAwareGoalInvocation, para
     const project = inv.project;
     const log = inv.progressLog;
 
-    // console.error(`-->> ${JSON.stringify({t: "pushToS3 init", project, inv, params})}`) // these outputs near identical between new-and-old
     const [fileCount, keysToKeep, warningsFromPut] = await putFiles(project, inv, s3, params);
-    console.error(JSON.stringify({t: "pushToS3 putFiles", fileCount, keysToKeep, warningsFromPut}));
     let deleted = 0;
     let moreWarnings: string[] = [];
     if (params.sync) {
         const [keysToDelete, warningsFromGatheringFilesToDelete] = await gatherKeysToDelete(s3, log, keysToKeep, params);
-        console.error(JSON.stringify({keysToDelete, warningsFromGatheringFilesToDelete}));
         const [deletedCount, warningsFromDeletions] = await deleteKeys(s3, log, params, keysToDelete);
-        console.error(JSON.stringify({deletedCount, warningsFromDeletions}));
         deleted = deletedCount;
         moreWarnings = [...warningsFromGatheringFilesToDelete, ...warningsFromDeletions];
-        console.error(JSON.stringify({deleted, moreWarnings}));
     }
 
     return {
