@@ -14,20 +14,15 @@
  * limitations under the License.
  */
 
-import {
-    logger,
-    Project,
-    ProjectFile,
-} from "@atomist/automation-client";
-import { doWithFiles } from "@atomist/automation-client/lib/project/util/projectUtils";
-import {
-    GoalInvocation,
-    ProgressLog,
-} from "@atomist/sdm";
 import { S3 } from "aws-sdk";
 import * as mime from "mime-types";
 import * as path from "path";
 import { PublishToS3Options } from "./options";
+import {GoalInvocation} from "@atomist/sdm/lib/api/goal/GoalInvocation";
+import {doWithFiles} from "@atomist/automation-client/lib/project/util/projectUtils";
+import {logger} from "@atomist/automation-client/lib/util/logger";
+import {ProgressLog} from "@atomist/sdm/lib/spi/log/ProgressLog";
+import {Project} from "@atomist/automation-client/lib/project/Project";
 
 type FilesAttempted = number;
 type SuccessfullyPushedKey = string;

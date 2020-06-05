@@ -14,19 +14,17 @@
  * limitations under the License.
  */
 
-import { doWithRetry } from "@atomist/automation-client";
-import {
-    CacheConfiguration,
-    GoalInvocation,
-} from "@atomist/sdm";
-import { GoalCacheArchiveStore } from "@atomist/sdm-core";
 import * as AWS from "aws-sdk";
 import * as fs from "fs-extra";
+import {GoalInvocation} from "@atomist/sdm/lib/api/goal/GoalInvocation";
+import {GoalCacheArchiveStore} from "@atomist/sdm-core/lib/goal/cache/CompressingGoalCache";
+import {CacheConfiguration} from "@atomist/sdm/lib/api/machine/SoftwareDeliveryMachineOptions";
+import {doWithRetry} from "@atomist/automation-client/lib/util/retry";
 
 export interface S3CacheConfiguration extends CacheConfiguration {
     cache?: {
         /**
-         * AWS S3 bucket to perist cache entries to.  If
+         * AWS S3 bucket to persist cache entries to.  If
          * not provided, it defaults to
          * "sdm-WORKSPACE_ID-SDM_NAME-goal-cache", with "WORKSPACE_ID"
          * replaced with your Atomist workspace ID and "SDM_NAME"
