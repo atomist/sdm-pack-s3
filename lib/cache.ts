@@ -66,10 +66,13 @@ export class S3GoalCacheArchiveStore implements GoalCacheArchiveStore {
 
     public async retrieve(gi: GoalInvocation, classifier: string, targetArchivePath: string): Promise<void> {
         await this.awsS3(gi, classifier, async (storage, bucket, cachePath) => {
-                                                return new Promise(resolve => {
+                                                return new Promise((resolve, reject) => {
                                                     storage.getObject({Bucket: bucket, Key: cachePath})
                                                         .createReadStream()
+                                                        .on("error", reject)
                                                         .pipe(fs.createWriteStream(targetArchivePath))
+                                                        .on("error", reject)
+                                                        .on("end", () => resolve(targetArchivePath))
                                                         .on("close", () => resolve(targetArchivePath));
                                                 });
                                               }, "retrieve");
